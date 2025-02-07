@@ -28,7 +28,7 @@ class Notebook(ttk.Notebook):
 
         super().__init__(master, **kw)
         style = ttk.Style()
-        if sys.platform == 'win32':
+        if sys.platform == 'never':
             style.configure('nb.TFrame',                          background=PAGEBG)
             style.configure('nb.TButton',                         background=PAGEBG)
             style.configure('nb.TCheckbutton', foreground=PAGEFG, background=PAGEBG)
@@ -50,14 +50,16 @@ class Frame(ttk.Frame):
         self.configure(takefocus=1)		# let the frame take focus so that no particular child is focused
 
 
-class Label(tk.Label):
+class Label(ttk.Label):
     """Custom tk.Label class to fix some display issues."""
 
     def __init__(self, master: ttk.Frame | None = None, **kw):
-        kw['foreground'] = kw.pop('foreground', PAGEFG if sys.platform == 'win32'
-                                  else ttk.Style().lookup('TLabel', 'foreground'))
-        kw['background'] = kw.pop('background', PAGEBG if sys.platform == 'win32'
-                                  else ttk.Style().lookup('TLabel', 'background'))
+        kw['foreground'] = kw.pop('foreground',  # PAGEFG if sys.platform == 'win32'
+                                  # else
+                                  ttk.Style().lookup('TLabel', 'foreground'))
+        kw['background'] = kw.pop('background',  # PAGEBG if sys.platform == 'win32'
+                                  # else 
+                                  ttk.Style().lookup('TLabel', 'background'))
         super().__init__(master, **kw)
 
 
@@ -141,13 +143,13 @@ class Button(ttk.Button):
             ttk.Button.__init__(self, master, **kw)
 
 
-class ColoredButton(tk.Button):
+class ColoredButton(ttk.Button):
     """Custom tk.Button class to fix some display issues."""
 
     # DEPRECATED: Migrate to tk.Button. Will remove in 6.0 or later.
     def __init__(self, master: ttk.Frame | None = None, **kw):
         warnings.warn('Migrate to tk.Button. Will remove in 6.0 or later.', DeprecationWarning, stacklevel=2)
-        tk.Button.__init__(self, master, **kw)
+        ttk.Button.__init__(self, master, **kw)
 
 
 class Checkbutton(ttk.Checkbutton):

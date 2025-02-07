@@ -772,11 +772,11 @@ class PreferencesDialog(tk.Toplevel):
             self.theme_label_0.grid(padx=self.PADX, pady=self.PADY, sticky=tk.W, row=cur_row)
 
             # Main window
-            self.theme_button_0 = tk.Button(
+            self.theme_button_0 = ttk.Button(
                 appearance_frame,
                 # LANG: Appearance - Example 'Normal' text
                 text=tr.tl('Station'),
-                background='grey4',
+                # background='grey4',
                 command=lambda: self.themecolorbrowse(0)
             )
 
@@ -785,10 +785,10 @@ class PreferencesDialog(tk.Toplevel):
         with row as cur_row:
             self.theme_label_1 = nb.Label(appearance_frame, text=self.theme_prompts[1])
             self.theme_label_1.grid(padx=self.PADX, pady=self.PADY, sticky=tk.W, row=cur_row)
-            self.theme_button_1 = tk.Button(
+            self.theme_button_1 = ttk.Button(
                 appearance_frame,
                 text='  Hutton Orbital  ',  # Do not translate
-                background='grey4',
+                # background='grey4',
                 command=lambda: self.themecolorbrowse(1)
             )
 
@@ -822,6 +822,7 @@ class PreferencesDialog(tk.Toplevel):
                 to=400,
                 tickinterval=50,
                 resolution=10,
+                background=ttk.Style().lookup("nb.TFrame", "background"),
             )
 
             self.uiscale_bar.grid(column=1, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
@@ -852,7 +853,8 @@ class PreferencesDialog(tk.Toplevel):
                 to=5,
                 tickinterval=10,
                 resolution=5,
-                command=lambda _: self.parent.wm_attributes("-alpha", self.transparency.get() / 100)
+                command=lambda _: self.parent.wm_attributes("-alpha", self.transparency.get() / 100),
+                background=ttk.Style().lookup("nb.TFrame", "background"),
             )
 
             nb.Label(

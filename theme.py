@@ -253,7 +253,7 @@ class _Theme:
     # Set up colors
     def _colors(self, root: tk.Tk, theme: int) -> None:
         style = ttk.Style()
-        if sys.platform == 'linux':
+        if sys.platform != 'darwin':
             style.theme_use('clam')
 
         # Default dark theme colors

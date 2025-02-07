@@ -219,7 +219,7 @@ class JournalLock:
             frame = ttk.Frame(self)
             frame.grid(sticky=tk.NSEW)
 
-            self.blurb = tk.Label(frame)
+            self.blurb = ttk.Label(frame)
             # LANG: Text for when newly selected Journal directory is already locked
             self.blurb['text'] = tr.tl("The new Journal Directory location is already locked.{CR}"
                                        "You can either attempt to resolve this and then Retry, "
