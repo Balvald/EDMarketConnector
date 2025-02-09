@@ -465,6 +465,12 @@ class AppWindow:
             image_path = config.respath_path / 'io.edcd.EDMarketConnector.png'
             self.w.tk.call('wm', 'iconphoto', self.w, '-default', tk.PhotoImage(file=image_path))
 
+        # Make sure that main window can be resized
+        self.w.resizable(tk.TRUE, tk.TRUE)
+        # We might want to weigh certain rows/columns more than others?
+        # tk.Grid.columnconfigure(self.w, 0, weight=1)
+        # tk.Grid.rowconfigure(self.w, 0, weight=1)
+
         frame = ttk.Frame(self.w, name=appname.lower())
         frame.grid(sticky=tk.NSEW)
         frame.columnconfigure(1, weight=1)
@@ -621,7 +627,8 @@ class AppWindow:
         self.theme_help_menu.grid(row=1, column=2, sticky=tk.W)
         ttk.Separator(self.theme_menubar).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
         self.theme_menubar.grid(row=0, columnspan=2, sticky=tk.NSEW)
-        self.w.resizable(tk.FALSE, tk.FALSE)
+        # We should not turn off the ability to resize the window!
+        # self.w.resizable(tk.FALSE, tk.FALSE)
         theme.apply()
 
         # update geometry
@@ -1677,7 +1684,9 @@ class AppWindow:
             if sys.platform == 'win32':
                 self.attributes('-toolwindow', tk.TRUE)
 
-            self.resizable(tk.FALSE, tk.FALSE)
+            # self.resizable(tk.FALSE, tk.FALSE)
+            # Make it resizable
+            self.resizable(tk.TRUE, tk.TRUE)
 
             frame = tk.Frame(self)
             frame.grid(sticky=tk.NSEW)
