@@ -428,6 +428,12 @@ class ScrollableFrame(ttk.Frame):
             return
         self.canvas.yview_scroll(-1 * int(event.delta / 120), "units")
 
+    def _set_yview(self, *args):
+        if self.canvas.winfo_height() > self.in_frame.winfo_height():
+            return
+        self.canvas.yview(*args)
+        self.in_frame.update_idletasks()
+
     # TODO get horizontal scrolling to work properly if even possible
 
     """def _on_mousewheel_hori(self, event):
@@ -439,10 +445,7 @@ class ScrollableFrame(ttk.Frame):
         logger.info(f"toplevel width: {self.winfo_toplevel().winfo_width()}")
         if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
             return
-        self.canvas.xview_scroll(-1 * int(event.delta / 120), "units")
-        # force update of the canvas to prevent elements from disappearing
-        self.in_frame.update()
-        self.in_frame.update_idletasks()"""
+        self.canvas.xview_scroll(-1 * int(event.delta / 120), "units")"""
 
     def __init__(self, parent, *args, **kw):
         ttk.Frame.__init__(self, parent, *args, **kw)
@@ -450,7 +453,8 @@ class ScrollableFrame(ttk.Frame):
         # creating scrollbar and canvas
         vscrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, name='vertscroll')
         # pack because otherwise it wont stay where I want it to be.
-        vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False)
+        # vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False, anchor=tk.E)
+        vscrollbar.grid(row=0, column=1, sticky=tk.NS+tk.E, rowspan=1, columnspan=1)
 
         # Horizontal Scrollbar could be used but when allowing scrolling while the window is
         # smaller than the requestedsize for the canvas/interior frame,
@@ -464,9 +468,10 @@ class ScrollableFrame(ttk.Frame):
                                 yscrollcommand=vscrollbar.set,
                                 # xscrollcommand=hscrollbar.set,
                                 name='cnv')
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas.grid(row=0, column=0, sticky=tk.NSEW)
 
-        vscrollbar.config(command=self.canvas.yview)
+        vscrollbar.config(command=self._set_yview)
         # hscrollbar.config(command=self.canvas.xview)
 
         # reset view
@@ -480,8 +485,10 @@ class ScrollableFrame(ttk.Frame):
                                                      window=self.in_frame,
                                                      anchor=tk.NW)
 
+        self.grid(sticky=tk.NSEW)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+        self.columnconfigure(1, weight=10)
 
         # adjust interior frame and canvas upon changing size
         def _configure_interior(event):
@@ -500,10 +507,12 @@ class ScrollableFrame(ttk.Frame):
 
             # hide or show scroll bar as needed
             if self.in_frame.winfo_reqheight() > self.canvas.winfo_height():
-                vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False)
+                # vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False, anchor=tk.E)
+                # vscrollbar.lift()
+                vscrollbar.grid(row=0, column=1, sticky=tk.NS+tk.E, rowspan=1, columnspan=1)
             else:
-                vscrollbar.pack_forget()
-
+                # vscrollbar.lower()
+                vscrollbar.grid_forget()
             # if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+14):
             #     hscrollbar.pack(fill=tk.X, side=tk.BOTTOM, expand=False)
             # else:
@@ -614,6 +623,16 @@ class AppWindow:
         self.theme_help_menu.grid(row=1, column=2, sticky=tk.W)
         ttk.Separator(self.theme_menubar).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
         self.theme_menubar.grid(row=0, columnspan=2, sticky=tk.NSEW)
+
+        # Manual Titlebar for Windows to properly support transparency
+        if sys.platform == 'win32':
+            title_label = ttk.Label(self.w, text=applongname, style='Title.TLabel')
+            title_label.grid(row=0, column=0, columnspan=3, sticky=tk.NW, padx=(2*self.PADX+16, 0), pady=(self.PADX, 0))
+            title_icon = tk.PhotoImage(file=config.respath_path / 'io.edcd.EDMarketConnector.png')
+            title_icon = title_icon.subsample(32, 32)
+            title_icon_widget = ttk.Label(self.w, image=title_icon)
+            title_icon_widget.photo = title_icon
+            title_icon_widget.grid(row=0, column=0, sticky=tk.NW, padx=(self.PADX, 0), pady=(self.PADX, 0))
 
         # Make sure that main window can be resized
         self.w.resizable(tk.TRUE, tk.TRUE)
@@ -728,9 +747,6 @@ class AppWindow:
             self.updater = update.Updater(tkroot=self.w)
             self.updater.check_for_updates()  # Sparkle / WinSparkle does this automatically for packaged apps
 
-        # Force title gap and menubar above scrollable area
-        self.title_gap.lift()
-        self.theme_menubar.lift()
         # We should not turn off the ability to resize the window!
         # self.w.resizable(tk.FALSE, tk.FALSE)
         theme.apply()

@@ -16,6 +16,7 @@ import warnings
 from tkinter import ttk
 from typing import Callable
 from config import appname, config
+from constants import applongname
 from EDMCLogging import get_main_logger
 
 logger = get_main_logger()
@@ -28,7 +29,7 @@ if sys.platform == 'win32':
     import win32gui
     from winrt.microsoft.ui.interop import get_window_id_from_window
     from winrt.microsoft.ui.windowing import AppWindow
-    from winrt.windows.ui import Color, Colors
+    from winrt.windows.ui import Color, Colors, ColorHelper
     from ctypes import windll
     FR_PRIVATE = 0x10
     fonts_loaded = windll.gdi32.AddFontResourceExW(str(config.respath_path / 'EUROCAPS.TTF'), FR_PRIVATE, 0)
@@ -177,7 +178,21 @@ class _Theme:
         warnings.warn('theme.update() is no longer necessary as theme attributes are set on tk level',
                       DeprecationWarning, stacklevel=2)
 
-    def transparent_onenter(self, event=None):
+    def to_hex(self, hex_color) -> str:
+        hex_color = str(hex_color)
+        hex_color = hex_color.lstrip()
+        if not hex_color.startswith('#'):
+            hex_color = self.root.winfo_rgb(hex_color)
+            hex_color = [int(hex_color[i] // 256) for i in range(len(hex_color))]
+            hex_color = '#{:02x}{:02x}{:02x}'.format(*hex_color)
+        return hex_color
+
+    def hex_to_rgb(self, hex_color) -> Color:
+        hex_color = self.to_hex(hex_color)
+        hex_color = hex_color.strip('#')
+        return ColorHelper.from_argb(255, int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+    """def transparent_onenter(self, event=None):
         logger.warning(f'event: {event} in transparent_onenter')
         self.root.attributes("-transparentcolor", '')
         if sys.platform == 'win32':
@@ -188,29 +203,37 @@ class _Theme:
         if event.widget == self.root:
             self.root.attributes("-transparentcolor", 'grey4')
             if sys.platform == 'win32':
-                self.set_title_buttons_background(Colors.transparent)
+                self.set_title_buttons_background(Colors.transparent)"""
 
     def transparent_move(self, event=None):
-        # logger.warning(f'event: {event} in transparent_move')
+        # to make it adjustable for any style we need to give this the background color of the title bar
+        # that should turn transparent, ideally as hex value
         # upper left corner of our window
         x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
-        # logger.warning(f"x = {x}, y = {y}")
         # lower right corner of our window
         max_x = x + self.root.winfo_width()
         max_y = y + self.root.winfo_height()
         # mouse position
         mouse_x, mouse_y = self.root.winfo_pointerx(), self.root.winfo_pointery()
-        # logger.warning(f"x = {mouse_x}, y = {mouse_y}")
 
+        if sys.platform == 'win32':
+            hwnd = win32gui.GetParent(self.root.winfo_id())
+            window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
+
+        # check if mouse is inside the window
         if x <= mouse_x <= max_x and y <= mouse_y <= max_y:
-            # mouse is inside the window
+            # mouse is inside the window area
             self.root.attributes("-transparentcolor", '')
             if sys.platform == 'win32':
-                self.set_title_buttons_background(Color(255, 10, 10, 10))
+                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
+                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
         else:
-            self.root.attributes("-transparentcolor", 'grey4')
+            self.root.attributes("-transparentcolor", self.style.lookup('TButton', 'background'))
             if sys.platform == 'win32':
                 self.set_title_buttons_background(Colors.transparent)
+                window.title_bar.background_color = Colors.transparent
+                window.title_bar.inactive_background_color = Colors.transparent
 
     def set_title_buttons_background(self, color: Color):
         hwnd = win32gui.GetParent(self.root.winfo_id())
@@ -236,16 +259,23 @@ class _Theme:
             window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
             title_gap: ttk.Frame = self.root.nametowidget('.alternate_menubar.title_gap')
 
-            if theme == self.THEME_DEFAULT:
-                window.title_bar.reset_to_default()
-                title_gap['height'] = 0
+            window.title_bar.extends_content_into_title_bar = True
+            title_gap['height'] = window.title_bar.height
+
+            if theme != self.THEME_TRANSPARENT:
+                # window.title_bar.reset_to_default()  # This makes it crash when switchthing back to default
+                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
+                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
             else:
-                window.title_bar.extends_content_into_title_bar = True
-                self.set_title_buttons_background(Color(255, 10, 10, 10))
-                title_gap['height'] = window.title_bar.height
+                self.set_title_buttons_background(Colors.transparent)
+                window.title_bar.background_color = Colors.transparent
+                window.title_bar.inactive_background_color = Colors.transparent
 
             if theme == self.THEME_TRANSPARENT:
-                # TODO prevent loss of focus when hovering the title bar area
+                # TODO prevent loss of focus when hovering the title bar area  # fixed by transparent_move,
+                # we just don't regain focus when hovering over the title bar,
+                # we have to hover over some visible widget first.
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
                                        win32con.WS_EX_APPWINDOW | win32con.WS_EX_LAYERED)  # Add to taskbar
                 self.binds['<Enter>'] = self.root.bind('<Enter>', self.transparent_move)
