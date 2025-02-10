@@ -245,6 +245,16 @@ class _Theme:
         theme = config.get_int('theme')
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
+            self.root.nametowidget('.alternate_menubar').tk.call('ttk::setTheme', self.packages[theme])
+            self.root.nametowidget('.alternate_menubar.title_gap').tk.call('ttk::setTheme', self.packages[theme])
+            if sys.platform == 'win32':
+                self.root.nametowidget(
+                    '.title_label'
+                    ).tk.call('ttk::setTheme', self.packages[theme])
+                self.root.nametowidget(
+                    '.title_icon'
+                    ).tk.call('ttk::setTheme', self.packages[theme])
+            self.root.nametowidget(f'.{appname.lower()}.cnv.in').tk.call('ttk::setTheme', self.packages[theme])
         except tk.TclError:
             logger.exception(f'Failure setting theme: {self.packages[theme]}')
 

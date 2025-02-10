@@ -417,9 +417,14 @@ SERVER_RETRY = 5  # retry pause for Companion servers [s]
 
 
 class ScrollableFrame(ttk.Frame):
-    """A pure Tkinter scrollable frame that actually works!
-    * Use the 'interior' attribute to place widgets inside the scrollable frame.
-    * Construct and pack/place/grid normally.
+    """ Scrollable Frame - no idea if this can stay here of if needs to be in another/its own file.
+    * Use the  ttk.Frame 'self.in_frame' of this ScrollableFrame thats inside the canvas (at self.canvas)
+      so that everything can scroll within the ScrollableFrame.
+    * It comes with working Scrollbars and all the bells and whistles.
+      Scroll around via mousewheel, vertical even horizontal.
+    * It supports resizing and vanishing the horizontral and vertical scrollbars if the window is bigger
+      than what the canvas/in_frame requires for size.
+    * The scrollbars and the canvas itself use 
     """
 
     # vertical scrolling controls
@@ -499,7 +504,6 @@ class ScrollableFrame(ttk.Frame):
             # match scroll region to requested frame size
             in_frame_size = (self.in_frame.winfo_reqwidth(),
                              self.in_frame.winfo_reqheight())
-            logger.info(f"interior frame size: {in_frame_size}")
             self.canvas.config(scrollregion="0 0 %s %s" % in_frame_size)
             if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
                 self.canvas.config(width=self.in_frame.winfo_reqwidth())
@@ -635,11 +639,11 @@ class AppWindow:
 
         # Manual Titlebar for Windows to properly support transparency
         if sys.platform == 'win32':
-            title_label = ttk.Label(self.w, text=applongname, style='Title.TLabel')
+            title_label = ttk.Label(self.w, text=applongname, style='Title.TLabel', name='title_label')
             title_label.grid(row=0, column=0, columnspan=3, sticky=tk.NW, padx=(2*self.PADX+16, 0), pady=(self.PADX, 0))
             title_icon = tk.PhotoImage(file=config.respath_path / 'io.edcd.EDMarketConnector.png')
             title_icon = title_icon.subsample(32, 32)
-            title_icon_widget = ttk.Label(self.w, image=title_icon)
+            title_icon_widget = ttk.Label(self.w, image=title_icon, name='title_icon')
             title_icon_widget.photo = title_icon
             title_icon_widget.grid(row=0, column=0, sticky=tk.NW, padx=(self.PADX, 0), pady=(self.PADX, 0))
 
