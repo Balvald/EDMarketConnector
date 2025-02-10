@@ -234,7 +234,7 @@ class _Theme:
         if sys.platform == 'win32':
             hwnd = win32gui.GetParent(self.root.winfo_id())
             window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
-            title_gap: ttk.Frame = self.root.nametowidget(f'{appname.lower()}.alternate_menubar.title_gap')
+            title_gap: ttk.Frame = self.root.nametowidget('.alternate_menubar.title_gap')
 
             if theme == self.THEME_DEFAULT:
                 window.title_bar.reset_to_default()

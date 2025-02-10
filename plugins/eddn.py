@@ -359,7 +359,7 @@ class EDDNSender:
             logger.info(text)
             return
 
-        self.eddn.parent.nametowidget(f".{appname.lower()}.status")['text'] = text
+        self.eddn.parent.nametowidget(f".{appname.lower()}.cnv.in.status")['text'] = text
 
     def send_message(self, msg: str) -> bool:
         """
@@ -2599,7 +2599,7 @@ def cmdr_data(data: CAPIData, is_beta: bool) -> str | None:  # noqa: CCR001
                 this.commodities = this.outfitting = this.shipyard = None
                 this.marketId = data['lastStarport']['id']
 
-            status = this.parent.nametowidget(f".{appname.lower()}.status")
+            status = this.parent.nametowidget(f".{appname.lower()}.cnv.in.status")
             old_status = status['text']
             if not old_status:
                 # LANG: Status text shown while attempting to send data

@@ -245,14 +245,14 @@ def plugin_app(parent: tk.Tk) -> None:
     :return: See PLUGINS.md#display
     """
     # system label in main window
-    this.system_link = parent.nametowidget(f".{appname.lower()}.system")
+    this.system_link = parent.nametowidget(f".{appname.lower()}.cnv.in.system")
     if this.system_link is None:
         logger.error("Couldn't look up system widget!!!")
         return
 
     this.system_link.bind_all('<<EDSMStatus>>', update_status)
     # station label in main window
-    this.station_link = parent.nametowidget(f".{appname.lower()}.station")
+    this.station_link = parent.nametowidget(f".{appname.lower()}.cnv.in.station")
 
 
 def plugin_stop() -> None:

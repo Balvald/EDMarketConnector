@@ -215,8 +215,8 @@ def plugin_start3(plugin_dir: str) -> str:
 def plugin_app(parent: tk.Tk) -> None:
     """Plugin UI setup Hook."""
     this.parent = parent
-    this.system_link = parent.nametowidget(f".{appname.lower()}.system")
-    this.station_link = parent.nametowidget(f".{appname.lower()}.station")
+    this.system_link = parent.nametowidget(f".{appname.lower()}.cnv.in.system")
+    this.station_link = parent.nametowidget(f".{appname.lower()}.cnv.in.station")
     this.system_link.bind_all('<<InaraLocation>>', update_location)
     this.system_link.bind_all('<<InaraShip>>', update_ship)
 

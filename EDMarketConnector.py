@@ -416,6 +416,106 @@ from ttkHyperlinkLabel import HyperlinkLabel, SHIPYARD_HTML_TEMPLATE
 SERVER_RETRY = 5  # retry pause for Companion servers [s]
 
 
+class ScrollableFrame(ttk.Frame):
+    """A pure Tkinter scrollable frame that actually works!
+    * Use the 'interior' attribute to place widgets inside the scrollable frame.
+    * Construct and pack/place/grid normally.
+    """
+
+    def _on_mousewheel_vert(self, event):
+        # logger.info(f"vertical Mousewheel event: {event}")
+        if self.canvas.winfo_height() > self.in_frame.winfo_height():
+            return
+        self.canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+
+    # TODO get horizontal scrolling to work properly if even possible
+
+    """def _on_mousewheel_hori(self, event):
+        logger.info(f"horizontal Mousewheel event: {event}")
+        # prevent horizontal scrolling if the window is wider than the canvas or the interior frame
+        # canvas and interior frame are the same width at any point anyway
+        logger.info(f"canvas width: {self.canvas.winfo_reqwidth()},
+                    interior frame width: {self.in_frame.winfo_width()}")
+        logger.info(f"toplevel width: {self.winfo_toplevel().winfo_width()}")
+        if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
+            return
+        self.canvas.xview_scroll(-1 * int(event.delta / 120), "units")
+        # force update of the canvas to prevent elements from disappearing
+        self.in_frame.update()
+        self.in_frame.update_idletasks()"""
+
+    def __init__(self, parent, *args, **kw):
+        ttk.Frame.__init__(self, parent, *args, **kw)
+
+        # creating scrollbar and canvas
+        vscrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, name='vertscroll')
+        # pack because otherwise it wont stay where I want it to be.
+        vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False)
+
+        # Horizontal Scrollbar could be used but when allowing scrolling while the window is
+        # smaller than the requestedsize for the canvas/interior frame,
+        # the stuff inside the frame gets cut off from whence we scrolled which is a bummer.
+        # hscrollbar = ttk.Scrollbar(self, orient=tk.HORIZONTAL, name='horiscroll')
+        # hscrollbar.pack(fill=tk.X, side=tk.BOTTOM, expand=False)
+
+        self.canvas = tk.Canvas(self,
+                                bd=0,
+                                highlightthickness=0,
+                                yscrollcommand=vscrollbar.set,
+                                # xscrollcommand=hscrollbar.set,
+                                name='cnv')
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        vscrollbar.config(command=self.canvas.yview)
+        # hscrollbar.config(command=self.canvas.xview)
+
+        # reset view
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(0)
+
+        # interior frame that will scroll along
+        self.in_frame = ttk.Frame(self.canvas, name='in')
+        self.in_frame_id = self.canvas.create_window(0,
+                                                     0,
+                                                     window=self.in_frame,
+                                                     anchor=tk.NW)
+
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        # adjust interior frame and canvas upon changing size
+        def _configure_interior(event):
+            # match scroll region to frame size
+            in_frame_size = (self.in_frame.winfo_reqwidth(),
+                             self.in_frame.winfo_reqheight())
+            self.canvas.config(scrollregion="0 0 %s %s" % in_frame_size)
+            if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
+                # set the canvas width to fit the inner frame
+                self.canvas.config(width=self.in_frame.winfo_reqwidth())
+
+        def _configure_canvas(event):
+            if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
+                # set the window width to fit the canvas
+                self.canvas.itemconfigure(self.in_frame_id, width=self.canvas.winfo_width())
+
+            # hide or show scroll bar as needed
+            if self.in_frame.winfo_reqheight() > self.canvas.winfo_height():
+                vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=False)
+            else:
+                vscrollbar.pack_forget()
+
+            # if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+14):
+            #     hscrollbar.pack(fill=tk.X, side=tk.BOTTOM, expand=False)
+            # else:
+            #     hscrollbar.pack_forget()
+
+        self.in_frame.bind('<Configure>', _configure_interior)
+        self.canvas.bind('<Configure>', _configure_canvas)
+        # enables scrolling while being over the canvas
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel_vert)
+        # self.canvas.bind_all("<Shift-MouseWheel>", self._on_mousewheel_hori)
+
+
 class AppWindow:
     """Define the main application window."""
 
@@ -436,7 +536,7 @@ class AppWindow:
         self.w = master
         self.w.title(applongname)
         self.minimizing = False
-        self.w.rowconfigure(0, weight=1)
+        self.w.rowconfigure(1, weight=1)
         self.w.columnconfigure(0, weight=1)
         theme.initialize(self.w)
 
@@ -464,119 +564,6 @@ class AppWindow:
         else:
             image_path = config.respath_path / 'io.edcd.EDMarketConnector.png'
             self.w.tk.call('wm', 'iconphoto', self.w, '-default', tk.PhotoImage(file=image_path))
-
-        # Make sure that main window can be resized
-        self.w.resizable(tk.TRUE, tk.TRUE)
-        # We might want to weigh certain rows/columns more than others?
-        # tk.Grid.columnconfigure(self.w, 0, weight=1)
-        # tk.Grid.rowconfigure(self.w, 0, weight=1)
-
-        frame = ttk.Frame(self.w, name=appname.lower())
-        frame.grid(sticky=tk.NSEW)
-        frame.columnconfigure(1, weight=1)
-
-        self.cmdr_label = ttk.Label(frame, name='cmdr_label')
-        self.cmdr = ttk.Label(frame, compound=tk.RIGHT, anchor=tk.W, name='cmdr')
-        self.ship_label = ttk.Label(frame, name='ship_label')
-        self.ship = HyperlinkLabel(frame, compound=tk.RIGHT, url=self.shipyard_url, name='ship', popup_copy=True)
-        self.suit_label = ttk.Label(frame, name='suit_label')
-        self.suit = ttk.Label(frame, compound=tk.RIGHT, anchor=tk.W, name='suit')
-        self.system_label = ttk.Label(frame, name='system_label')
-        self.system = HyperlinkLabel(frame, compound=tk.RIGHT, url=self.system_url, popup_copy=True, name='system')
-        self.station_label = ttk.Label(frame, name='station_label')
-        self.station = HyperlinkLabel(frame, compound=tk.RIGHT, url=self.station_url, name='station', popup_copy=True)
-        # system and station text is set/updated by the 'provider' plugins
-        # edsm and inara.  Look for:
-        #
-        # parent.nametowidget(f".{appname.lower()}.system")
-        # parent.nametowidget(f".{appname.lower()}.station")
-
-        ui_row = 1
-
-        self.cmdr_label.grid(row=ui_row, column=0, sticky=tk.W)
-        self.cmdr.grid(row=ui_row, column=1, sticky=tk.EW)
-        ui_row += 1
-
-        self.ship_label.grid(row=ui_row, column=0, sticky=tk.W)
-        self.ship.grid(row=ui_row, column=1, sticky=tk.EW)
-        ui_row += 1
-
-        self.suit_grid_row = ui_row
-        self.suit_shown = False
-        ui_row += 1
-
-        self.system_label.grid(row=ui_row, column=0, sticky=tk.W)
-        self.system.grid(row=ui_row, column=1, sticky=tk.EW)
-        ui_row += 1
-
-        self.station_label.grid(row=ui_row, column=0, sticky=tk.W)
-        self.station.grid(row=ui_row, column=1, sticky=tk.EW)
-        ui_row += 1
-
-        plugin_no = 0
-        for plugin in plug.PLUGINS:
-            # Per plugin separator
-            plugin_sep = ttk.Separator(frame, name=f"plugin_hr_{plugin_no + 1}")
-            # Per plugin frame, for it to use as its parent for own widgets
-            plugin_frame = ttk.Frame(
-                frame,
-                name=f"plugin_{plugin_no + 1}"
-            )
-            appitem = plugin.get_app(plugin_frame)
-            if appitem:
-                plugin_no += 1
-                plugin_sep.grid(columnspan=2, sticky=tk.EW)
-                ui_row = frame.grid_size()[1]
-                plugin_frame.grid(
-                    row=ui_row, columnspan=2, sticky=tk.NSEW
-                )
-                plugin_frame.columnconfigure(1, weight=1)
-                if isinstance(appitem, tuple) and len(appitem) == 2:
-                    ui_row = frame.grid_size()[1]
-                    appitem[0].grid(row=ui_row, column=0, sticky=tk.W)
-                    appitem[1].grid(row=ui_row, column=1, sticky=tk.EW)
-
-                else:
-                    appitem.grid(columnspan=2, sticky=tk.EW)
-
-            else:
-                # This plugin didn't provide any UI, so drop the frames
-                plugin_frame.destroy()
-                plugin_sep.destroy()
-
-        # LANG: Update button in main window
-        self.button = ttk.Button(
-            frame,
-            name='update_button',
-            text=tr.tl('Update'),  # LANG: Main UI Update button
-            width=28,
-            default=tk.ACTIVE,
-            state=tk.DISABLED
-        )
-
-        ui_row = frame.grid_size()[1]
-        self.button.grid(row=ui_row, columnspan=2, sticky=tk.NSEW)
-        self.button.bind('<Button-1>', self.capi_request_data)
-
-        # Bottom 'status' line.
-        self.status = ttk.Label(frame, name='status', anchor=tk.W)
-        self.status.grid(columnspan=2, sticky=tk.EW)
-
-        for child in frame.winfo_children():
-            child.grid_configure(padx=self.PADX, pady=(
-                sys.platform != 'win32' or isinstance(child, ttk.Frame)) and 2 or 0)
-
-        # This used to be *after* the menu setup for some reason, but is testing
-        # as working (both internal and external) like this. -Ath
-        import update
-
-        if getattr(sys, 'frozen', False):
-            # Running in frozen .exe, so use (Win)Sparkle
-            self.updater = update.Updater(tkroot=self.w, provider='external')
-
-        else:
-            self.updater = update.Updater(tkroot=self.w)
-            self.updater.check_for_updates()  # Sparkle / WinSparkle does this automatically for packaged apps
 
         self.file_menu = self.view_menu = tk.Menu(self.w, tearoff=tk.FALSE)
         self.file_menu.add_command(command=lambda: stats.StatsDialog(self.w, self.status))
@@ -615,7 +602,7 @@ class AppWindow:
 
         self.w.protocol("WM_DELETE_WINDOW", self.onexit)
 
-        self.theme_menubar = ttk.Frame(frame, name="alternate_menubar")
+        self.theme_menubar = ttk.Frame(self.w, name="alternate_menubar")
         self.theme_menubar.columnconfigure(2, weight=1)
         self.title_gap = ttk.Frame(self.theme_menubar, name='title_gap')
         self.title_gap.grid(row=0, columnspan=3)
@@ -627,6 +614,123 @@ class AppWindow:
         self.theme_help_menu.grid(row=1, column=2, sticky=tk.W)
         ttk.Separator(self.theme_menubar).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
         self.theme_menubar.grid(row=0, columnspan=2, sticky=tk.NSEW)
+
+        # Make sure that main window can be resized
+        self.w.resizable(tk.TRUE, tk.TRUE)
+
+        self.frame = ScrollableFrame(self.w, name=appname.lower())
+        self.frame.grid(sticky=tk.NSEW)
+        self.frame.columnconfigure(1, weight=1)
+
+        self.cmdr_label = ttk.Label(self.frame.in_frame, name='cmdr_label')
+        self.cmdr = ttk.Label(self.frame.in_frame, compound=tk.RIGHT, anchor=tk.W, name='cmdr')
+        self.ship_label = ttk.Label(self.frame.in_frame, name='ship_label')
+        self.ship = HyperlinkLabel(self.frame.in_frame, compound=tk.RIGHT, url=self.shipyard_url, name='ship',
+                                   popup_copy=True)
+        self.suit_label = ttk.Label(self.frame.in_frame, name='suit_label')
+        self.suit = ttk.Label(self.frame.in_frame, compound=tk.RIGHT, anchor=tk.W, name='suit')
+        self.system_label = ttk.Label(self.frame.in_frame, name='system_label')
+        self.system = HyperlinkLabel(self.frame.in_frame, compound=tk.RIGHT, url=self.system_url, name='system',
+                                     popup_copy=True)
+        self.station_label = ttk.Label(self.frame.in_frame, name='station_label')
+        self.station = HyperlinkLabel(self.frame.in_frame, compound=tk.RIGHT, url=self.station_url, name='station',
+                                      popup_copy=True)
+        # system and station text is set/updated by the 'provider' plugins
+        # edsm and inara.  Look for:
+        #
+        # parent.nametowidget(f".{appname.lower()}.cnv.in.system")
+        # parent.nametowidget(f".{appname.lower()}.cnv.in.station")
+
+        ui_row = 1
+
+        self.cmdr_label.grid(row=ui_row, column=0, sticky=tk.W)
+        self.cmdr.grid(row=ui_row, column=1, sticky=tk.EW)
+        ui_row += 1
+
+        self.ship_label.grid(row=ui_row, column=0, sticky=tk.W)
+        self.ship.grid(row=ui_row, column=1, sticky=tk.EW)
+        ui_row += 1
+
+        self.suit_grid_row = ui_row
+        self.suit_shown = False
+        ui_row += 1
+
+        self.system_label.grid(row=ui_row, column=0, sticky=tk.W)
+        self.system.grid(row=ui_row, column=1, sticky=tk.EW)
+        ui_row += 1
+
+        self.station_label.grid(row=ui_row, column=0, sticky=tk.W)
+        self.station.grid(row=ui_row, column=1, sticky=tk.EW)
+        ui_row += 1
+
+        plugin_no = 0
+        for plugin in plug.PLUGINS:
+            # Per plugin separator
+            plugin_sep = ttk.Separator(self.frame.in_frame, name=f"plugin_hr_{plugin_no + 1}")
+            # Per plugin frame, for it to use as its parent for own widgets
+            plugin_frame = ttk.Frame(
+                self.frame.in_frame,
+                name=f"plugin_{plugin_no + 1}"
+            )
+            appitem = plugin.get_app(plugin_frame)
+            if appitem:
+                plugin_no += 1
+                plugin_sep.grid(columnspan=2, sticky=tk.EW)
+                ui_row = self.frame.in_frame.grid_size()[1]
+                plugin_frame.grid(
+                    row=ui_row, columnspan=2, sticky=tk.NSEW
+                )
+                plugin_frame.columnconfigure(1, weight=1)
+                if isinstance(appitem, tuple) and len(appitem) == 2:
+                    ui_row = self.frame.in_frame.grid_size()[1]
+                    appitem[0].grid(row=ui_row, column=0, sticky=tk.W)
+                    appitem[1].grid(row=ui_row, column=1, sticky=tk.EW)
+
+                else:
+                    appitem.grid(columnspan=2, sticky=tk.EW)
+
+            else:
+                # This plugin didn't provide any UI, so drop the frames
+                plugin_frame.destroy()
+                plugin_sep.destroy()
+
+        # LANG: Update button in main window
+        self.button = ttk.Button(
+            self.frame.in_frame,
+            name='update_button',
+            text=tr.tl('Update'),  # LANG: Main UI Update button
+            width=28,
+            default=tk.ACTIVE,
+            state=tk.DISABLED
+        )
+
+        ui_row = self.frame.in_frame.grid_size()[1]
+        self.button.grid(row=ui_row, columnspan=2, sticky=tk.NSEW)
+        self.button.bind('<Button-1>', self.capi_request_data)
+
+        # Bottom 'status' line.
+        self.status = ttk.Label(self.frame.in_frame, name='status', anchor=tk.W)
+        self.status.grid(columnspan=2, sticky=tk.EW)
+
+        for child in self.frame.in_frame.winfo_children():
+            child.grid_configure(padx=self.PADX, pady=(
+                sys.platform != 'win32' or isinstance(child, ttk.Frame)) and 2 or 0)
+
+        # This used to be *after* the menu setup for some reason, but is testing
+        # as working (both internal and external) like this. -Ath
+        import update
+
+        if getattr(sys, 'frozen', False):
+            # Running in frozen .exe, so use (Win)Sparkle
+            self.updater = update.Updater(tkroot=self.w, provider='external')
+
+        else:
+            self.updater = update.Updater(tkroot=self.w)
+            self.updater.check_for_updates()  # Sparkle / WinSparkle does this automatically for packaged apps
+
+        # Force title gap and menubar above scrollable area
+        self.title_gap.lift()
+        self.theme_menubar.lift()
         # We should not turn off the ability to resize the window!
         # self.w.resizable(tk.FALSE, tk.FALSE)
         theme.apply()
@@ -1684,9 +1788,9 @@ class AppWindow:
             if sys.platform == 'win32':
                 self.attributes('-toolwindow', tk.TRUE)
 
-            # self.resizable(tk.FALSE, tk.FALSE)
-            # Make it resizable
-            self.resizable(tk.TRUE, tk.TRUE)
+            # Don't need the Help about window to be resizable
+            self.resizable(tk.FALSE, tk.FALSE)
+            # self.resizable(tk.TRUE, tk.TRUE)
 
             frame = tk.Frame(self)
             frame.grid(sticky=tk.NSEW)
