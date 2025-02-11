@@ -16,7 +16,6 @@ import warnings
 from tkinter import ttk
 from typing import Callable
 from config import appname, config
-from constants import applongname
 from EDMCLogging import get_main_logger
 
 logger = get_main_logger()
@@ -133,6 +132,8 @@ class _Theme:
     root: tk.Tk
     binds: dict[str, str] = {}
 
+    colors: dict[str, str] = {}
+
     def __init__(self) -> None:
         self.active: int | None = None  # Starts out with no theme
         self.minwidth: int | None = None
@@ -192,19 +193,6 @@ class _Theme:
         hex_color = hex_color.strip('#')
         return ColorHelper.from_argb(255, int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
-    """def transparent_onenter(self, event=None):
-        logger.warning(f'event: {event} in transparent_onenter')
-        self.root.attributes("-transparentcolor", '')
-        if sys.platform == 'win32':
-            self.set_title_buttons_background(Color(255, 10, 10, 10))
-
-    def transparent_onleave(self, event=None):
-        logger.warning(f'event: {event} in transparent_onleave')
-        if event.widget == self.root:
-            self.root.attributes("-transparentcolor", 'grey4')
-            if sys.platform == 'win32':
-                self.set_title_buttons_background(Colors.transparent)"""
-
     def transparent_move(self, event=None):
         # to make it adjustable for any style we need to give this the background color of the title bar
         # that should turn transparent, ideally as hex value
@@ -228,12 +216,15 @@ class _Theme:
                 self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
                 window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
                 window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.button_hover_background_color = self.hex_to_rgb(
+                    self.style.lookup('TButton', 'selectbackground'))
         else:
             self.root.attributes("-transparentcolor", self.style.lookup('TButton', 'background'))
             if sys.platform == 'win32':
                 self.set_title_buttons_background(Colors.transparent)
                 window.title_bar.background_color = Colors.transparent
                 window.title_bar.inactive_background_color = Colors.transparent
+                window.title_bar.button_hover_background_color = Colors.transparent
 
     def set_title_buttons_background(self, color: Color):
         hwnd = win32gui.GetParent(self.root.winfo_id())
@@ -241,20 +232,175 @@ class _Theme:
         window.title_bar.button_background_color = color
         window.title_bar.button_inactive_background_color = color
 
+    def load_colors(self):
+        # load colors from the current theme which is a *.tcl file
+        # and store them in the colors dict
+
+        # get the current theme
+        theme = config.get_int('theme')
+        theme_name = self.packages[theme]
+
+        # get the path to the theme file
+        theme_file = config.internal_theme_dir_path / theme_name / (theme_name + '.tcl')
+
+        # load the theme file
+        with open(theme_file, 'r') as f:
+            lines = f.readlines()
+            foundstart = False
+            for line in lines:
+                logger.info(line)
+                if line.lstrip().startswith('array set colors'):
+                    foundstart = True
+                    continue
+                if line.lstrip().startswith('}'):
+                    break
+                if foundstart:
+                    pair = line.lstrip().replace('\n', '').replace('"', '').split()
+                    self.colors[pair[0]] = pair[1]
+
+        logger.info(f'Loaded colors: {self.colors}')
+
+    # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
+    # all widgets upon the second theme change we have to force it
+
+    def _get_all_widgets(self):
+        all_widgets = []
+        all_widgets.append(self.root)
+
+        for child in self.root.winfo_children():
+            all_widgets.append(child)
+            all_widgets.extend(child.winfo_children())
+
+        oldlen = 0
+        newlen = len(all_widgets)
+
+        while newlen > oldlen:
+            oldlen = newlen
+            for widget in all_widgets:
+                try:
+                    widget_children = widget.winfo_children()
+                    for child in widget_children:
+                        if child not in all_widgets:
+                            all_widgets.append(child)
+                except Exception as e:
+                    logger.error(f'Error getting children of {widget}: {e}')
+            newlen = len(all_widgets)
+        return all_widgets
+
+    def _force_theme_menubutton(self, widget):
+        # get colors from map
+        background = self.style.map('TMenubutton', 'background')
+        foreground = self.style.map('TMenubutton', 'foreground')
+        logger.info(f'colors: {background} {foreground}')
+        self.style.map('TMenubutton', background=[('active', background[0][1])])
+        self.style.map('TMenubutton', foreground=[('active', foreground[0][1])])
+
+    def _force_theme_menu(self, widget):
+        colors = self.colors
+        widget.configure(background=self.style.lookup('TMenu', 'background'))
+        widget.configure(foreground=self.style.lookup('TMenu', 'foreground'))
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(activeforeground=colors['-selectfg'])
+
+    def _force_theme_button(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=self.style.lookup('TButton', 'background'))
+        widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
+        if type(widget) is ttk.Button:
+            style_change = {'activebackground': self.style.lookup('TButton', 'activebackground'),
+                            'activeforeground': self.style.lookup('TButton', 'activeforeground'),
+                            'selectbackground': self.style.lookup('TButton', 'selectbackground'),
+                            'selectforeground': self.style.lookup('TButton', 'selectforeground')}
+            logger.info(f'Forcing theme change for {widget} with {style_change}')
+            widget.configure(**style_change)
+        # find the color in the self.style for the pressed state
+        # self.style.lookup()
+
+    def _force_theme_label(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=self.style.lookup('TLabel', 'background'))
+        widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
+
+    def _force_theme_frame(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=self.style.lookup('TFrame', 'background'))
+        # widget.configure(style=self.style.lookup('TFrame'))
+
+    def _force_theme_scale(self, widget):
+        try:
+            # get colors from the current theme
+            # keys are -fg, -bg, -disabledfg, -selectfg, -selectbg -highlight
+            colors = self.colors
+
+            logger.info('foreground')
+            widget.configure(foreground=colors['-fg'])
+            logger.info('highlightbackground')
+            widget.configure(highlightbackground=colors['-selectbg'])
+            logger.info('activebackground')
+            widget.configure(activebackground=colors['-selectbg'])
+            logger.info('background')
+            widget.configure(background=colors['-bg'])
+            logger.info('highlight')
+            widget.configure(highlightcolor=colors['-highlight'])
+            logger.info('trough')
+            widget.configure(troughcolor=colors['-bg'])
+        except Exception as e:
+            logger.error(f'Error forcing theme for tk.Scale: {e} Scales not initialized yet?')
+
+    def _force_theme(self):
+        logger.info('Forcing theme change')
+        # get absolute top root
+
+        if sys.platform == 'win32':
+            title_label = self.root.nametowidget('.title_label')
+            title_icon = self.root.nametowidget('.title_icon')
+            self._force_theme_label(title_label)
+            self._force_theme_label(title_icon)
+
+        labels = [f'{appname.lower()}.cnv.in.cmdr_label',
+                  f'{appname.lower()}.cnv.in.cmdr',
+                  f'{appname.lower()}.cnv.in.ship_label',
+                  f'{appname.lower()}.cnv.in.suit_label',
+                  f'{appname.lower()}.cnv.in.suit',
+                  f'{appname.lower()}.cnv.in.system_label',
+                  f'{appname.lower()}.cnv.in.station_label',
+                  f'{appname.lower()}.cnv.in.status']
+
+        for label in labels:
+            self._force_theme_label(self.root.nametowidget(label))
+
+        all_widgets = self._get_all_widgets()
+
+        # logger.info(f'all_widgets: {all_widgets}')
+
+        for widget in all_widgets:
+            if isinstance(widget, tk.Button or ttk.Button):
+                self._force_theme_button(widget)
+            elif isinstance(widget, tk.Label):
+                self._force_theme_label(widget)
+            elif isinstance(widget, tk.Frame or ttk.Frame):
+                self._force_theme_frame(widget)
+            elif isinstance(widget,ttk.Menubutton):
+                self._force_theme_menubutton(widget)
+            elif isinstance(widget, tk.Menu):
+                self._force_theme_menu(widget)
+            elif isinstance(widget, tk.Scale):
+                self._force_theme_scale(widget)
+            else:
+                try:
+                    self._force_theme_label(widget)
+                except Exception as e:
+                    logger.warning(f'Error forcing theme for {widget}: {e}')
+
     def apply(self) -> None:
+        logger.info('Applying theme')
         theme = config.get_int('theme')
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
-            self.root.nametowidget('.alternate_menubar').tk.call('ttk::setTheme', self.packages[theme])
-            self.root.nametowidget('.alternate_menubar.title_gap').tk.call('ttk::setTheme', self.packages[theme])
-            if sys.platform == 'win32':
-                self.root.nametowidget(
-                    '.title_label'
-                    ).tk.call('ttk::setTheme', self.packages[theme])
-                self.root.nametowidget(
-                    '.title_icon'
-                    ).tk.call('ttk::setTheme', self.packages[theme])
-            self.root.nametowidget(f'.{appname.lower()}.cnv.in').tk.call('ttk::setTheme', self.packages[theme])
+            # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
+            # all widgets upon the second theme change we have to force it
+            self.load_colors()
+            self._force_theme()
         except tk.TclError:
             logger.exception(f'Failure setting theme: {self.packages[theme]}')
 
@@ -277,10 +423,13 @@ class _Theme:
                 self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
                 window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
                 window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.button_hover_background_color = self.hex_to_rgb(
+                    self.style.lookup('TButton', 'selectbackground'))
             else:
                 self.set_title_buttons_background(Colors.transparent)
                 window.title_bar.background_color = Colors.transparent
                 window.title_bar.inactive_background_color = Colors.transparent
+                window.title_bar.button_hover_background_color = Colors.transparent
 
             if theme == self.THEME_TRANSPARENT:
                 # TODO prevent loss of focus when hovering the title bar area  # fixed by transparent_move,
@@ -297,6 +446,8 @@ class _Theme:
                 for event, bind in self.binds.items():
                     self.root.unbind(event, bind)
                 self.binds.clear()
+
+            # self.binds['<<ThemeChanged>>'] = self.root.bind('<<ThemeChanged>>', self._force_theme)
         else:
             if dpy:
                 xroot = Window()

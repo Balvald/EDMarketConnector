@@ -423,8 +423,11 @@ class ScrollableFrame(ttk.Frame):
     * It comes with working Scrollbars and all the bells and whistles.
       Scroll around via mousewheel, vertical even horizontal.
     * It supports resizing and vanishing the horizontral and vertical scrollbars if the window is bigger
-      than what the canvas/in_frame requires for size.
-    * The scrollbars and the canvas itself use 
+      than what the canvas/interior frame requires for size.
+    * The scrollbars and the canvas itself use pack() instead of grid() because of some the scrollbars
+      vanishing when resizing the window and not being able to find an equivalent grid command to keep
+      always visible when the window is smaller than the canvas/interior frame.
+    * Though within the canvas, the in_frame we can again use grid() to our hearts content.
     """
 
     # vertical scrolling controls
@@ -452,6 +455,65 @@ class ScrollableFrame(ttk.Frame):
             return
         self.canvas.xview(*args)
         self.in_frame.update_idletasks()
+
+    def _theme(self, event):
+        # get the background color and handle the colour of the canvas
+        # Sometimes it does not want to change after theme.apply() so we encourage it a bit more.
+        color = ttk.Style().lookup('TLabel', 'background')
+        self.canvas.config(background=color)
+
+        # self._force_theme()
+
+    def _force_theme_button(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=ttk.Style().lookup('TButton', 'background'))
+        widget.configure(foreground=ttk.Style().lookup('TButton', 'foreground'))
+
+    def _force_theme_label(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=ttk.Style().lookup('TLabel', 'background'))
+        widget.configure(foreground=ttk.Style().lookup('TLabel', 'foreground'))
+
+    def _force_theme_frame(self, widget):
+        logger.info(f'Forcing theme change for {widget}')
+        widget.configure(background=ttk.Style().lookup('TFrame', 'background'))
+        # widget.configure(style=self.style.lookup('TFrame'))
+
+    def _force_theme(self):
+        logger.info('Forcing theme change')
+        # get absolute top root
+
+        all_widgets = []
+        all_widgets.append(self.in_frame)
+
+        for child in self.in_frame.winfo_children():
+            all_widgets.append(child)
+            all_widgets.extend(child.winfo_children())
+
+        oldlen = 0
+        newlen = len(all_widgets)
+
+        while newlen > oldlen:
+            oldlen = newlen
+            for widget in all_widgets:
+                try:
+                    widget_children = widget.winfo_children()
+                    for child in widget_children:
+                        if child not in all_widgets:
+                            all_widgets.append(child)
+                except Exception as e:
+                    logger.error(f'Error getting children of {widget}: {e}')
+            newlen = len(all_widgets)
+
+        logger.info(f'all_widgets: {all_widgets}')
+
+        for widget in all_widgets:
+            if isinstance(widget, tk.Button or ttk.Button):
+                self._force_theme_button(widget)
+            elif isinstance(widget, tk.Label or ttk.Label):
+                self._force_theme_label(widget)
+            elif isinstance(widget, tk.Frame or ttk.Frame):
+                self._force_theme_frame(widget)
 
     # constructor
     def __init__(self, parent, *args, **kw):
@@ -536,6 +598,11 @@ class ScrollableFrame(ttk.Frame):
         # enables scrolling while being over the canvas
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel_vert)
         self.canvas.bind_all("<Shift-MouseWheel>", self._on_mousewheel_hori)
+
+        # WORKAROUND $elite-version-number | 2025/02/11 : Forcing color change in canvas
+        # Always forcing the canvas to update its background color
+        # technically a workaround.
+        self.bind('<<ThemeChanged>>', self._theme)
 
 
 class AppWindow:
@@ -637,9 +704,10 @@ class AppWindow:
         ttk.Separator(self.theme_menubar).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
         self.theme_menubar.grid(row=0, columnspan=2, sticky=tk.NSEW)
 
-        # Manual Titlebar for Windows to properly support transparency
+        # WORKAROUND $elite-version-number | 2025/02/11 : Manual Titlebar for Windows to properly support transparency
+        # The OS built-int titlebar can't be made transparent, so we just construct it ourselves.
         if sys.platform == 'win32':
-            title_label = ttk.Label(self.w, text=applongname, style='Title.TLabel', name='title_label')
+            title_label = ttk.Label(self.w, text=applongname, name='title_label')
             title_label.grid(row=0, column=0, columnspan=3, sticky=tk.NW, padx=(2*self.PADX+16, 0), pady=(self.PADX, 0))
             title_icon = tk.PhotoImage(file=config.respath_path / 'io.edcd.EDMarketConnector.png')
             title_icon = title_icon.subsample(32, 32)
