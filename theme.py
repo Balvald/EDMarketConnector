@@ -10,6 +10,7 @@ Believe us, this used to be much worse before ttk's theme support was properly l
 from __future__ import annotations
 
 import os
+import prefs
 import sys
 import tkinter as tk
 import warnings
@@ -291,7 +292,6 @@ class _Theme:
         # get colors from map
         background = self.style.map('TMenubutton', 'background')
         foreground = self.style.map('TMenubutton', 'foreground')
-        # logger.info(f'colors: {background} {foreground}')
         self.style.configure('TMenubutton', background=self.style.lookup('TMenubutton', 'background'))
         self.style.configure('TMenubutton', foreground=self.style.lookup('TMenubutton', 'foreground'))
         self.style.map('TMenubutton', background=[('active', background[0][1])])
@@ -305,28 +305,18 @@ class _Theme:
         widget.configure(activeforeground=colors['-selectfg'])
 
     def _force_theme_button(self, widget):
-        # logger.info(f'Forcing theme change for {widget}')
+        colors = self.colors
         widget.configure(background=self.style.lookup('TButton', 'background'))
         widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
-        if type(widget) is ttk.Button:
-            style_change = {'activebackground': self.style.lookup('TButton', 'activebackground'),
-                            'activeforeground': self.style.lookup('TButton', 'activeforeground'),
-                            'selectbackground': self.style.lookup('TButton', 'selectbackground'),
-                            'selectforeground': self.style.lookup('TButton', 'selectforeground')}
-            # logger.info(f'Forcing theme change for {widget} with {style_change}')
-            widget.configure(**style_change)
-        # find the color in the self.style for the pressed state
-        # self.style.lookup()
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(activeforeground=colors['-selectfg'])
 
     def _force_theme_label(self, widget):
-        # logger.info(f'Forcing theme change for {widget}')
         widget.configure(background=self.style.lookup('TLabel', 'background'))
         widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
 
     def _force_theme_frame(self, widget):
-        # logger.info(f'Forcing theme change for {widget}')
         widget.configure(background=self.style.lookup('TFrame', 'background'))
-        # widget.configure(style=self.style.lookup('TFrame'))
 
     def _force_theme_scale(self, widget):
         # get colors from the current theme
@@ -371,11 +361,11 @@ class _Theme:
 
         for widget in all_widgets:
             try:
-                if isinstance(widget, tk.Button or ttk.Button):
+                if isinstance(widget, tk.Button):
                     self._force_theme_button(widget)
                 elif isinstance(widget, tk.Label):
                     self._force_theme_label(widget)
-                elif isinstance(widget, tk.Frame or ttk.Frame):
+                elif isinstance(widget, tk.Frame):
                     self._force_theme_frame(widget)
                 elif isinstance(widget, ttk.Menubutton):
                     self._force_theme_menubutton(widget)
@@ -383,12 +373,22 @@ class _Theme:
                     self._force_theme_menu(widget)
                 elif isinstance(widget, tk.Scale):
                     self._force_theme_scale(widget)
-                elif isinstance(widget, tk.Canvas or ttk.Checkbutton):
+                elif isinstance(widget, (tk.Canvas,
+                                ttk.Checkbutton,
+                                tk.Checkbutton,
+                                ttk.Frame,
+                                ttk.Separator,
+                                ttk.Scrollbar,
+                                ttk.Notebook,
+                                ttk.Radiobutton,
+                                ttk.Button,
+                                prefs.PreferencesDialog,
+                                tk.Tk)):
                     continue
                 else:
                     self._force_theme_label(widget)
             except Exception as e:
-                logger.info(f'Error forcing theme for {widget}: {e}')
+                logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
 
     def apply(self) -> None:
         logger.info('Applying theme')
