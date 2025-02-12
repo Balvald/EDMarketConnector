@@ -636,6 +636,9 @@ class AppWindow:
         self.prefsdialog_window = None
         self.prefsdialog_count = 0
 
+        self.helpabout_window = None
+        self.helpabout_count = 0
+
         if sys.platform == 'win32':
             from simplesystray import SysTrayIcon
 
@@ -672,7 +675,7 @@ class AppWindow:
         self.help_menu.add_command(command=self.help_releases)  # Release Notes
         self.help_menu.add_command(command=lambda: self.updater.check_for_updates())  # Check for Updates...
         # About E:D Market Connector
-        self.help_menu.add_command(command=lambda: not self.HelpAbout.showing and self.HelpAbout(self.w))
+        self.help_menu.add_command(command=self.openabout)
         logfile_loc = pathlib.Path(config.app_dir_path / 'logs')
         self.help_menu.add_command(command=lambda: prefs.open_folder(logfile_loc))  # Open Log Folder
         self.help_menu.add_command(command=lambda: prefs.help_open_system_profiler(self))  # Open Log Folde
@@ -930,6 +933,13 @@ class AppWindow:
             self.suit_label.grid_forget()
             self.suit.grid_forget()
             self.suit_shown = False
+
+    def openabout(self) -> None:
+        """Open the About dialog."""
+        self.helpabout_count += 1
+        if not self.HelpAbout.showing:
+            self.helpabout_window = self.HelpAbout(self.w)
+        theme.apply()
 
     def openprefs(self) -> None:
         """Open the Preferences dialog."""
