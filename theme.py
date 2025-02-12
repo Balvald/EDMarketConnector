@@ -248,7 +248,7 @@ class _Theme:
             lines = f.readlines()
             foundstart = False
             for line in lines:
-                logger.info(line)
+                # logger.info(line)
                 if line.lstrip().startswith('array set colors'):
                     foundstart = True
                     continue
@@ -291,7 +291,9 @@ class _Theme:
         # get colors from map
         background = self.style.map('TMenubutton', 'background')
         foreground = self.style.map('TMenubutton', 'foreground')
-        logger.info(f'colors: {background} {foreground}')
+        # logger.info(f'colors: {background} {foreground}')
+        self.style.configure('TMenubutton', background=self.style.lookup('TMenubutton', 'background'))
+        self.style.configure('TMenubutton', foreground=self.style.lookup('TMenubutton', 'foreground'))
         self.style.map('TMenubutton', background=[('active', background[0][1])])
         self.style.map('TMenubutton', foreground=[('active', foreground[0][1])])
 
@@ -303,7 +305,7 @@ class _Theme:
         widget.configure(activeforeground=colors['-selectfg'])
 
     def _force_theme_button(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
+        # logger.info(f'Forcing theme change for {widget}')
         widget.configure(background=self.style.lookup('TButton', 'background'))
         widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
         if type(widget) is ttk.Button:
@@ -311,41 +313,81 @@ class _Theme:
                             'activeforeground': self.style.lookup('TButton', 'activeforeground'),
                             'selectbackground': self.style.lookup('TButton', 'selectbackground'),
                             'selectforeground': self.style.lookup('TButton', 'selectforeground')}
-            logger.info(f'Forcing theme change for {widget} with {style_change}')
+            # logger.info(f'Forcing theme change for {widget} with {style_change}')
             widget.configure(**style_change)
         # find the color in the self.style for the pressed state
         # self.style.lookup()
 
     def _force_theme_label(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
+        # logger.info(f'Forcing theme change for {widget}')
         widget.configure(background=self.style.lookup('TLabel', 'background'))
         widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
 
     def _force_theme_frame(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
+        # logger.info(f'Forcing theme change for {widget}')
         widget.configure(background=self.style.lookup('TFrame', 'background'))
         # widget.configure(style=self.style.lookup('TFrame'))
 
-    def _force_theme_scale(self, widget):
-        try:
-            # get colors from the current theme
-            # keys are -fg, -bg, -disabledfg, -selectfg, -selectbg -highlight
-            colors = self.colors
+    def _force_theme_optionmenu(self, widget):
+        # destroy and rebuild the widget
+        # get all options from options menu
+        options = widget['menu'].entries()
+        # get the current value
+        value = widget.get()
+        # get the current style
+        style = widget.cget('style')
+        # get the current command
+        command = widget.cget('command')
+        # get the current textvariable
+        textvariable = widget.cget('textvariable')
+        # get the current variable
+        variable = widget.cget('variable')
+        # get the current width
+        width = widget.cget('width')
+        # get the current height
+        height = widget.cget('height')
 
-            logger.info('foreground')
-            widget.configure(foreground=colors['-fg'])
-            logger.info('highlightbackground')
-            widget.configure(highlightbackground=colors['-selectbg'])
-            logger.info('activebackground')
-            widget.configure(activebackground=colors['-selectbg'])
-            logger.info('background')
-            widget.configure(background=colors['-bg'])
-            logger.info('highlight')
-            widget.configure(highlightcolor=colors['-highlight'])
-            logger.info('trough')
-            widget.configure(troughcolor=colors['-bg'])
-        except Exception as e:
-            logger.error(f'Error forcing theme for tk.Scale: {e} Scales not initialized yet?')
+    def _force_theme_scale(self, widget):
+        # destroy and rebuild the widget
+        """activebackground 	The color of the slider when the mouse is over it. See Section 5.3, “Colors”.
+        bg or background 	The background color of the parts of the widget that are outside the trough.
+        bd or borderwidth 	Width of the 3-d border around the trough and slider. Default is two pixels. For acceptable values, see Section 5.1, “Dimensions”.
+        command 	A procedure to be called every time the slider is moved. This procedure will be passed one argument, the new scale value. If the slider is moved rapidly, you may not get a callback for every possible position, but you'll certainly get a callback when it settles.
+        cursor 	The cursor that appears when the mouse is over the scale. See Section 5.8, “Cursors”.
+        digits 	The way your program reads the current value shown in a scale widget is through a control variable; see Section 52, “Control variables: the values behind the widgets”. The control variable for a scale can be an IntVar, a DoubleVar (for type float), or a StringVar. If it is a string variable, the digits option controls how many digits to use when the numeric scale value is converted to a string.
+        font 	The font used for the label and annotations. See Section 5.4, “Type fonts”.
+        fg or foreground 	The color of the text used for the label and annotations.
+        from_ 	A float value that defines one end of the scale's range. For vertical scales, this is the top end; for horizontal scales, the left end. The underbar (_) is not a typo: because from is a reserved word in Python, this option is spelled from_. The default is 0.0. See the to option, below, for the other end of the range.
+        highlightbackground 	The color of the focus highlight when the scale does not have focus. See Section 53, “Focus: routing keyboard input”.
+        highlightcolor 	The color of the focus highlight when the scale has the focus.
+        highlightthickness 	The thickness of the focus highlight. Default is 1. Set highlightthickness=0 to suppress display of the focus highlight.
+        label 	You can display a label within the scale widget by setting this option to the label's text. The label appears in the top left corner if the scale is horizontal, or the top right corner if vertical. The default is no label.
+        length 	The length of the scale widget. This is the x dimension if the scale is horizontal, or the y dimension if vertical. The default is 100 pixels. For allowable values, see Section 5.1, “Dimensions”.
+        orient 	Set orient=tk.HORIZONTAL if you want the scale to run along the x dimension, or orient=tk.VERTICAL to run parallel to the y-axis. Default is vertical.
+        relief 	With the default relief=tk.FLAT, the scale does not stand out from its background. You may also use relief=tk.SOLID to get a solid black frame around the scale, or any of the other relief types described in Section 5.6, “Relief styles”.
+        repeatdelay 	This option controls how long button 1 has to be held down in the trough before the slider starts moving in that direction repeatedly. Default is repeatdelay=300, and the units are milliseconds.
+        repeatinterval 	This option controls how often the slider jumps once button 1 has been held down in the trough for at least repeatdelay milliseconds. For example, repeatinterval=100 would jump the slider every 100 milliseconds.
+        resolution 	Normally, the user will only be able to change the scale in whole units. Set this option to some other value to change the smallest increment of the scale's value. For example, if from_=-1.0 and to=1.0, and you set resolution=0.5, the scale will have 5 possible values: -1.0, -0.5, 0.0, +0.5, and +1.0. All smaller movements will be ignored. Use resolution=-1 to disable any rounding of values.
+        showvalue 	Normally, the current value of the scale is displayed in text form by the slider (above it for horizontal scales, to the left for vertical scales). Set this option to 0 to suppress that label.
+        sliderlength 	Normally the slider is 30 pixels along the length of the scale. You can change that length by setting the sliderlength option to your desired length; see Section 5.1, “Dimensions”.
+        sliderrelief 	By default, the slider is displayed with a tk.RAISED relief style. For other relief styles, set this option to any of the values described in Section 5.6, “Relief styles”.
+        state 	Normally, scale widgets respond to mouse events, and when they have the focus, also keyboard events. Set state=tk.DISABLED to make the widget unresponsive.
+        takefocus 	Normally, the focus will cycle through scale widgets. Set this option to 0 if you don't want this behavior. See Section 53, “Focus: routing keyboard input”.
+        tickinterval 	Normally, no “ticks” are displayed along the scale. To display periodic scale values, set this option to a number, and ticks will be displayed on multiples of that value. For example, if from_=0.0, to=1.0, and tickinterval=0.25, labels will be displayed along the scale at values 0.0, 0.25, 0.50, 0.75, and 1.00. These labels appear below the scale if horizontal, to its left if vertical. Default is 0, which suppresses display of ticks.
+        to 	A float value that defines one end of the scale's range; the other end is defined by the from_ option, discussed above. The to value can be either greater than or less than the from_ value. For vertical scales, the to value defines the bottom of the scale; for horizontal scales, the right end. The default value is 100.0.
+        troughcolor 	The color of the trough.
+        variable 	The control variable for this scale, if any; see Section 52, “Control variables: the values behind the widgets”. Control variables may be from class IntVar, DoubleVar (for type float), or StringVar. In the latter case, the numerical value will be converted to a string. See the the digits option, above, for more information on this conversion.
+        width"""
+        # get parent of widget
+        parent = widget.master
+        # get all values from the widget
+
+
+
+        # destroy widget
+        widget.destroy()
+        # create new widget with values
+        tk.Scale
 
     def _force_theme(self):
         logger.info('Forcing theme change')
@@ -371,26 +413,26 @@ class _Theme:
 
         all_widgets = self._get_all_widgets()
 
-        # logger.info(f'all_widgets: {all_widgets}')
-
         for widget in all_widgets:
-            if isinstance(widget, tk.Button or ttk.Button):
-                self._force_theme_button(widget)
-            elif isinstance(widget, tk.Label):
-                self._force_theme_label(widget)
-            elif isinstance(widget, tk.Frame or ttk.Frame):
-                self._force_theme_frame(widget)
-            elif isinstance(widget,ttk.Menubutton):
-                self._force_theme_menubutton(widget)
-            elif isinstance(widget, tk.Menu):
-                self._force_theme_menu(widget)
-            elif isinstance(widget, tk.Scale):
-                self._force_theme_scale(widget)
-            else:
-                try:
+            try:
+                if isinstance(widget, tk.Button or ttk.Button):
+                    self._force_theme_button(widget)
+                elif isinstance(widget, tk.Label):
                     self._force_theme_label(widget)
-                except Exception as e:
-                    logger.warning(f'Error forcing theme for {widget}: {e}')
+                elif isinstance(widget, tk.Frame or ttk.Frame):
+                    self._force_theme_frame(widget)
+                elif isinstance(widget, ttk.OptionMenu):
+                    self._force_theme_optionmenu(widget)
+                elif isinstance(widget, ttk.Menubutton):
+                    self._force_theme_menubutton(widget)
+                elif isinstance(widget, tk.Menu):
+                    self._force_theme_menu(widget)
+                elif isinstance(widget, tk.Scale):
+                    self.force_theme
+                else:
+                    self._force_theme_label(widget)
+            except Exception as e:
+                logger.warning(f'Error forcing theme for {widget}: {e}')
 
     def apply(self) -> None:
         logger.info('Applying theme')

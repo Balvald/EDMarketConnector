@@ -633,6 +633,8 @@ class AppWindow:
         companion.session.set_tk_master(self.w)
 
         self.prefsdialog = None
+        self.prefsdialog_window = None
+        self.prefsdialog_count = 0
 
         if sys.platform == 'win32':
             from simplesystray import SysTrayIcon
@@ -657,7 +659,7 @@ class AppWindow:
         self.file_menu = self.view_menu = tk.Menu(self.w, tearoff=tk.FALSE)
         self.file_menu.add_command(command=lambda: stats.StatsDialog(self.w, self.status))
         self.file_menu.add_command(command=self.save_raw)
-        self.file_menu.add_command(command=lambda: prefs.PreferencesDialog(self.w, self.postprefs))
+        self.file_menu.add_command(command=self.openprefs)
         self.file_menu.add_separator()
         self.file_menu.add_command(command=self.onexit)
         self.edit_menu = tk.Menu(self.w, tearoff=tk.FALSE)
@@ -928,6 +930,12 @@ class AppWindow:
             self.suit_label.grid_forget()
             self.suit.grid_forget()
             self.suit_shown = False
+
+    def openprefs(self) -> None:
+        """Open the Preferences dialog."""
+        self.prefsdialog_count += 1
+        self.prefsdialog_window = prefs.PreferencesDialog(self.w, self.postprefs)
+        theme.apply()
 
     def postprefs(self, dologin: bool = True, **postargs):
         """Perform necessary actions after the Preferences dialog is applied."""
