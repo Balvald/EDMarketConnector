@@ -4,7 +4,6 @@ May be imported by plugins
 """
 import tkinter as tk
 from tkinter import ttk
-from config import logger
 
 
 class ScrollableFrame(ttk.Frame):
@@ -52,59 +51,6 @@ class ScrollableFrame(ttk.Frame):
         # Sometimes it does not want to change after theme.apply() so we encourage it a bit more.
         color = ttk.Style().lookup('TLabel', 'background')
         self.canvas.config(background=color)
-
-        # self._force_theme()
-
-    def _force_theme_button(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
-        widget.configure(background=ttk.Style().lookup('TButton', 'background'))
-        widget.configure(foreground=ttk.Style().lookup('TButton', 'foreground'))
-
-    def _force_theme_label(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
-        widget.configure(background=ttk.Style().lookup('TLabel', 'background'))
-        widget.configure(foreground=ttk.Style().lookup('TLabel', 'foreground'))
-
-    def _force_theme_frame(self, widget):
-        logger.info(f'Forcing theme change for {widget}')
-        widget.configure(background=ttk.Style().lookup('TFrame', 'background'))
-        # widget.configure(style=self.style.lookup('TFrame'))
-
-    def _force_theme(self):
-        logger.info('Forcing theme change')
-        # get absolute top root
-
-        all_widgets = []
-        all_widgets.append(self.in_frame)
-
-        for child in self.in_frame.winfo_children():
-            all_widgets.append(child)
-            all_widgets.extend(child.winfo_children())
-
-        oldlen = 0
-        newlen = len(all_widgets)
-
-        while newlen > oldlen:
-            oldlen = newlen
-            for widget in all_widgets:
-                try:
-                    widget_children = widget.winfo_children()
-                    for child in widget_children:
-                        if child not in all_widgets:
-                            all_widgets.append(child)
-                except Exception as e:
-                    logger.error(f'Error getting children of {widget}: {e}')
-            newlen = len(all_widgets)
-
-        logger.info(f'all_widgets: {all_widgets}')
-
-        for widget in all_widgets:
-            if isinstance(widget, tk.Button or ttk.Button):
-                self._force_theme_button(widget)
-            elif isinstance(widget, tk.Label or ttk.Label):
-                self._force_theme_label(widget)
-            elif isinstance(widget, tk.Frame or ttk.Frame):
-                self._force_theme_frame(widget)
 
     # constructor
     def __init__(self, parent, *args, **kw):
