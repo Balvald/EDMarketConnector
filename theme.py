@@ -425,7 +425,7 @@ class _Theme:
 
     def register_skip(self, widget: tk.Widget, prefs: bool = False) -> None:
         """Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
-           * Because _force_theme will just assign it the set theme. Even if the plugin creator had something else in mind."""
+           * Because _force_theme will just assign the theme even if the plugin creator had something else in mind."""
 
         # If we are in prefs the widget needs to start with .!preferencesdialog{number}.!frame.!notebook
         # If we are looking at a widget that is part of the main ui it needs to start with:
