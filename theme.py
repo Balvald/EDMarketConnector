@@ -134,6 +134,9 @@ class _Theme:
     binds: dict[str, str] = {}
 
     colors: dict[str, str] = {}
+    prefsdialog_count: int = 0
+    helpabout_count: int = 0
+    force_skips: list = []
 
     def __init__(self) -> None:
         self.active: int | None = None  # Starts out with no theme
@@ -335,16 +338,8 @@ class _Theme:
         # logger.info('trough')
         widget.configure(troughcolor=colors['-bg'])
 
-    def _force_theme(self):
-        logger.info('Forcing theme change')
-        # get absolute top root
-
-        if sys.platform == 'win32':
-            title_label = self.root.nametowidget('.title_label')
-            title_icon = self.root.nametowidget('.title_icon')
-            self._force_theme_label(title_label)
-            self._force_theme_label(title_icon)
-
+    def _force_theme_base_plugins(self):
+        """These widgets are immediately part of the root frame in the main ui and have to be forced seperately"""
         labels = [f'{appname.lower()}.cnv.in.cmdr_label',
                   f'{appname.lower()}.cnv.in.cmdr',
                   f'{appname.lower()}.cnv.in.ship_label',
@@ -357,11 +352,48 @@ class _Theme:
         for label in labels:
             self._force_theme_label(self.root.nametowidget(label))
 
+    def _force_theme_get_skips(self):
+        prefscount = self.prefsdialog_count
+        if prefscount == 1:
+            prefscount = ""
+
+        # Skipping widgets that shall continue to use the dark theme that is assigned to them.
+
+        all_skips = [
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!button",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!button2",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!label3",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!label4"
+        ]
+
+        # Get skips that got registered by plugins
+        for skip in self.force_skips:
+            if str(skip).startswith('.!preferencesdialog'):
+                skip = f".!preferencesdialog{prefscount}" + str(skip).replace('.!preferencesdialog', '')
+            all_skips.append(skip)
+
+        return all_skips
+
+    def _force_theme(self):
+        logger.info('Forcing theme change')
+
+        if sys.platform == 'win32':
+            title_label = self.root.nametowidget('.title_label')
+            title_icon = self.root.nametowidget('.title_icon')
+            self._force_theme_label(title_label)
+            self._force_theme_label(title_icon)
+
+        self._force_theme_base_plugins()
+
+        all_skips = self._force_theme_get_skips()
+
         all_widgets = self._get_all_widgets()
 
         for widget in all_widgets:
             try:
-                if isinstance(widget, tk.Button):
+                if str(widget) in all_skips:
+                    continue
+                elif isinstance(widget, tk.Button):
                     self._force_theme_button(widget)
                 elif isinstance(widget, tk.Label):
                     self._force_theme_label(widget)
@@ -373,22 +405,38 @@ class _Theme:
                     self._force_theme_menu(widget)
                 elif isinstance(widget, tk.Scale):
                     self._force_theme_scale(widget)
-                elif isinstance(widget, (tk.Canvas,
-                                ttk.Checkbutton,
-                                tk.Checkbutton,
-                                ttk.Frame,
-                                ttk.Separator,
-                                ttk.Scrollbar,
-                                ttk.Notebook,
-                                ttk.Radiobutton,
-                                ttk.Button,
-                                prefs.PreferencesDialog,
-                                tk.Tk)):
+                elif isinstance(widget,
+                                (tk.Tk,
+                                 tk.Canvas,
+                                 tk.Checkbutton,
+                                 ttk.Checkbutton,
+                                 ttk.Frame,
+                                 ttk.Separator,
+                                 ttk.Scrollbar,
+                                 ttk.Notebook,
+                                 ttk.Radiobutton,
+                                 ttk.Button,
+                                 prefs.PreferencesDialog)):
                     continue
                 else:
                     self._force_theme_label(widget)
             except Exception as e:
                 logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
+
+    def register_skip(self, widget: tk.Widget, prefs: bool = False) -> None:
+        # Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
+        # As force_theme will just assign it the default theme style. Regardless of if the plugin creator had
+        # something else in mind for some of their widgets.
+
+        # If we are in prefs the widget needs to start with .!preferencesdialog{number}.!frame.!notebook
+        # If we are looking at a widget that is part of the main ui it needs to start with:
+        # .edmarketconnector.cnv.in.plugin_{number}.!frame
+        logger.info(f'Registering skip for {widget}')
+        if prefs:
+            logger.info('this one is supüposed to be a Prefs skip')
+        else:
+            logger.info('this one is supposed to be a main ui skip')
+        # self.force_skips.append(str(widget))
 
     def apply(self) -> None:
         logger.info('Applying theme')

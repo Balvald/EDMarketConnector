@@ -446,10 +446,7 @@ class AppWindow:
 
         self.prefsdialog = None
         self.prefsdialog_window = None
-        self.prefsdialog_count = 0
-
         self.helpabout_window = None
-        self.helpabout_count = 0
 
         if sys.platform == 'win32':
             from simplesystray import SysTrayIcon
@@ -748,14 +745,14 @@ class AppWindow:
 
     def openabout(self) -> None:
         """Open the About dialog."""
-        self.helpabout_count += 1
+        theme.helpabout_count += 1
         if not self.HelpAbout.showing:
             self.helpabout_window = self.HelpAbout(self.w)
         theme.apply()
 
     def openprefs(self) -> None:
         """Open the Preferences dialog."""
-        self.prefsdialog_count += 1
+        theme.prefsdialog_count += 1
         self.prefsdialog_window = prefs.PreferencesDialog(self.w, self.postprefs)
         theme.apply()
 
