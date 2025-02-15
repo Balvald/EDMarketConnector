@@ -236,6 +236,9 @@ class _Theme:
         window.title_bar.button_background_color = color
         window.title_bar.button_inactive_background_color = color
 
+    # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
+    # all widgets upon the second theme change we have to force it
+
     def load_colors(self):
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
@@ -263,9 +266,6 @@ class _Theme:
                     self.colors[pair[0]] = pair[1]
 
         logger.info(f'Loaded colors: {self.colors}')
-
-    # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
-    # all widgets upon the second theme change we have to force it
 
     def _get_all_widgets(self):
         all_widgets = []
