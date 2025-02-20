@@ -435,7 +435,7 @@ class _Theme:
         # .edmarketconnector.cnv.in.plugin_{number}.!frame
         logger.info(f'Registering skip for {widget}')
         if prefs:
-            logger.info('this one is supüposed to be a Prefs skip')
+            logger.info('this one is supposed to be a Prefs skip')
         else:
             logger.info('this one is supposed to be a main ui skip')
         # self.force_skips.append(str(widget))
