@@ -189,15 +189,22 @@ class _Theme:
         if not hex_color.startswith('#'):
             hex_color = self.root.winfo_rgb(hex_color)
             hex_color = [int(hex_color[i] // 256) for i in range(len(hex_color))]
-            hex_color = '#{:02x}{:02x}{:02x}'.format(*hex_color)
+            hex_color = '#{:02x}{:02x}{:02x}'.format(*hex_color)  # noqa: FS002
         return hex_color
 
-    def hex_to_rgb(self, hex_color) -> Color:
-        hex_color = self.to_hex(hex_color)
-        hex_color = hex_color.strip('#')
-        return ColorHelper.from_argb(255, int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+    if sys.platform == 'win32':
+        def hex_to_rgb(self, hex_color) -> Color:
+            hex_color = self.to_hex(hex_color)
+            hex_color = hex_color.strip('#')
+            return ColorHelper.from_argb(255, int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
-    def transparent_move(self, event=None):
+        def set_title_buttons_background(self, color: Color) -> None:
+            hwnd = win32gui.GetParent(self.root.winfo_id())
+            window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
+            window.title_bar.button_background_color = color
+            window.title_bar.button_inactive_background_color = color
+
+    def transparent_move(self, event=None) -> None:
         # to make it adjustable for any style we need to give this the background color of the title bar
         # that should turn transparent, ideally as hex value
         # upper left corner of our window
@@ -230,12 +237,6 @@ class _Theme:
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
 
-    def set_title_buttons_background(self, color: Color):
-        hwnd = win32gui.GetParent(self.root.winfo_id())
-        window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
-        window.title_bar.button_background_color = color
-        window.title_bar.button_inactive_background_color = color
-
     # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
     # all widgets upon the second theme change we have to force it
 
@@ -267,7 +268,7 @@ class _Theme:
 
         logger.info(f'Loaded colors: {self.colors}')
 
-    def _get_all_widgets(self):
+    def _get_all_widgets(self) -> list:
         all_widgets = []
         all_widgets.append(self.root)
 
@@ -291,7 +292,7 @@ class _Theme:
             newlen = len(all_widgets)
         return all_widgets
 
-    def _force_theme_menubutton(self, widget):
+    def _force_theme_menubutton(self, widget) -> None:
         # get colors from map
         background = self.style.map('TMenubutton', 'background')
         foreground = self.style.map('TMenubutton', 'foreground')
@@ -300,28 +301,28 @@ class _Theme:
         self.style.map('TMenubutton', background=[('active', background[0][1])])
         self.style.map('TMenubutton', foreground=[('active', foreground[0][1])])
 
-    def _force_theme_menu(self, widget):
+    def _force_theme_menu(self, widget) -> None:
         colors = self.colors
         widget.configure(background=self.style.lookup('TMenu', 'background'))
         widget.configure(foreground=self.style.lookup('TMenu', 'foreground'))
         widget.configure(activebackground=colors['-selectbg'])
         widget.configure(activeforeground=colors['-selectfg'])
 
-    def _force_theme_button(self, widget):
+    def _force_theme_button(self, widget) -> None:
         colors = self.colors
         widget.configure(background=self.style.lookup('TButton', 'background'))
         widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
         widget.configure(activebackground=colors['-selectbg'])
         widget.configure(activeforeground=colors['-selectfg'])
 
-    def _force_theme_label(self, widget):
+    def _force_theme_label(self, widget) -> None:
         widget.configure(background=self.style.lookup('TLabel', 'background'))
         widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
 
-    def _force_theme_frame(self, widget):
+    def _force_theme_frame(self, widget) -> None:
         widget.configure(background=self.style.lookup('TFrame', 'background'))
 
-    def _force_theme_scale(self, widget):
+    def _force_theme_scale(self, widget) -> None:
         # get colors from the current theme
         # keys are -fg, -bg, -disabledfg, -selectfg, -selectbg -highlight
         colors = self.colors
@@ -338,8 +339,8 @@ class _Theme:
         # logger.info('trough')
         widget.configure(troughcolor=colors['-bg'])
 
-    def _force_theme_base_plugins(self):
-        """These widgets are immediately part of the root frame in the main ui and have to be forced seperately"""
+    def _force_theme_base_plugins(self) -> None:
+        """Force widgets that are immediately part of the root frame in the main ui and have to be forced seperately."""
         labels = [f'{appname.lower()}.cnv.in.cmdr_label',
                   f'{appname.lower()}.cnv.in.cmdr',
                   f'{appname.lower()}.cnv.in.ship_label',
@@ -424,9 +425,11 @@ class _Theme:
                 logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
 
     def register_skip(self, widget: tk.Widget, prefs: bool = False) -> None:
-        """Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
-           * Because _force_theme will just assign the theme even if the plugin creator had something else in mind."""
+        """
+        Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
 
+           * Because _force_theme will just assign the theme even if the plugin creator had something else in mind.
+        """
         # If we are in prefs the widget needs to start with .!preferencesdialog{number}.!frame.!notebook
         # If we are looking at a widget that is part of the main ui it needs to start with:
         # .edmarketconnector.cnv.in.plugin_{number}.!frame

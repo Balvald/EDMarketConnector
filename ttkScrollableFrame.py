@@ -1,5 +1,10 @@
-
 """
+ttkScrollableFrame.py - Scrolable ttk Frame.
+
+Copyright (c) EDCD, All Rights Reserved
+Licensed under the GNU General Public License.
+See LICENSE file.
+
 May be imported by plugins
 """
 import tkinter as tk
@@ -7,7 +12,9 @@ from tkinter import ttk
 
 
 class ScrollableFrame(ttk.Frame):
-    """ Scrollable Frame - no idea if this can stay here of if needs to be in another/its own file.
+    """
+    Scrollable Frame. A Frame that can scroll horizontally and vertically.
+
     * Use the  ttk.Frame 'self.in_frame' of this ScrollableFrame thats inside the canvas (at self.canvas)
       so that everything can scroll within the ScrollableFrame.
     * It comes with working Scrollbars and all the bells and whistles.
@@ -21,39 +28,39 @@ class ScrollableFrame(ttk.Frame):
     """
 
     # vertical scrolling controls
-    def _on_mousewheel_vert(self, event):
+    def _on_mousewheel_vert(self, event) -> None:
         if self.canvas.winfo_height() > self.in_frame.winfo_height():
             return
         self.canvas.yview_scroll(-1 * int(event.delta / 120), "units")
 
-    def _set_yview(self, *args):
+    def _set_yview(self, *args) -> None:
         if self.canvas.winfo_height() > self.in_frame.winfo_height():
             return
         self.canvas.yview(*args)
         self.in_frame.update_idletasks()
 
     # horizontal scrolling controls
-    def _on_mousewheel_hori(self, event):
+    def _on_mousewheel_hori(self, event) -> None:
         # prevent horizontal scrolling if the window is wider than the canvas or the interior frame
         # canvas and interior frame are the same width at any point anyway
         if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
             return
         self.canvas.xview_scroll(-1 * int(event.delta / 120), "units")
 
-    def _set_xview(self, *args):
+    def _set_xview(self, *args) -> None:
         if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
             return
         self.canvas.xview(*args)
         self.in_frame.update_idletasks()
 
-    def _theme(self, event):
+    def _theme(self, event) -> None:
         # get the background color and handle the colour of the canvas
         # Sometimes it does not want to change after theme.apply() so we encourage it a bit more.
         color = ttk.Style().lookup('TLabel', 'background')
         self.canvas.config(background=color)
 
     # constructor
-    def __init__(self, parent, *args, **kw):
+    def __init__(self, parent, *args, **kw) -> None:
         ttk.Frame.__init__(self, parent, *args, **kw)
 
         # creating scrollbar and canvas
@@ -99,16 +106,16 @@ class ScrollableFrame(ttk.Frame):
         self.columnconfigure(1, weight=10)
 
         # adjust canvas upon changing size and scrollregion upon change in frame
-        def _configure_in_frame(event):
+        def _configure_in_frame(event) -> None:
             # match scroll region to requested frame size
             in_frame_size = (self.in_frame.winfo_reqwidth(),
                              self.in_frame.winfo_reqheight())
-            self.canvas.config(scrollregion="0 0 %s %s" % in_frame_size)
+            self.canvas.config(scrollregion="0 0 %s %s" % in_frame_size)  # noqa: FS001
             if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
                 self.canvas.config(width=self.in_frame.winfo_reqwidth())
 
         # adjust in_frame_id window size upon change in canvas
-        def _configure_canvas(event):
+        def _configure_canvas(event) -> None:
             if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
                 # set the window width to fit the canvas
                 self.canvas.itemconfigure(self.in_frame_id, width=self.canvas.winfo_reqwidth())
