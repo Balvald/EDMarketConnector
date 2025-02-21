@@ -757,27 +757,32 @@ class PreferencesDialog(tk.Toplevel):
             self.theme_select.grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
 
         # Appearance theme and language setting
-        ttk.Radiobutton(
-            # LANG: Label for 'Default' theme radio button
-            appearance_frame, text=tr.tl('Default'), variable=self.theme,
-            value=theme.THEME_DEFAULT, command=self.themevarchanged
-        ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
+        # ttk.Radiobutton(
+        #     # LANG: Label for 'Default' theme radio button
+        #     appearance_frame, text=tr.tl('Default'), variable=self.theme,
+        #     value=theme.THEME_DEFAULT, command=self.themevarchanged
+        # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
 
         # Appearance theme setting
-        ttk.Radiobutton(
-            # LANG: Label for 'Dark' theme radio button
-            appearance_frame, text=tr.tl('Dark'), variable=self.theme,
-            value=theme.THEME_DARK, command=self.themevarchanged
-        ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
+        # ttk.Radiobutton(
+        #     # LANG: Label for 'Dark' theme radio button
+        #     appearance_frame, text=tr.tl('Dark'), variable=self.theme,
+        #     value=theme.THEME_DARK, command=self.themevarchanged
+        # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
 
         if sys.platform == 'win32':
-            ttk.Radiobutton(
+            # ttk.Radiobutton(
+            #     appearance_frame,
+            #     # LANG: Label for 'Transparent' theme radio button
+            #     text=tr.tl('Transparent'),  # Appearance theme setting
+            #     variable=self.theme,
+            #     value=theme.THEME_TRANSPARENT,
+            #     command=self.themevarchanged
+            # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
+            ttk.Checkbutton(
                 appearance_frame,
-                # LANG: Label for 'Transparent' theme radio button
-                text=tr.tl('Transparent'),  # Appearance theme setting
-                variable=self.theme,
-                value=theme.THEME_TRANSPARENT,
-                command=self.themevarchanged
+                text=tr.tl('Transparent'),
+                variable=theme.transparent
             ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
 
         with row as cur_row:

@@ -151,7 +151,7 @@ class _Theme:
     def initialize(self, root: tk.Tk):
         self.style = ttk.Style()
         self.root = root
-
+        self.transparent = tk.BooleanVar(value=config.get_bool('transparent'))
         # Default dark theme colors
         if not config.get_str('dark_text'):
             config.set('dark_text', '#ff8000')  # "Tangerine" in OSX color picker
@@ -410,16 +410,16 @@ class _Theme:
                     self._force_theme_button(widget)
                 elif isinstance(widget, HyperlinkLabel):
                     self._force_theme_hyperlink(widget)
-                elif isinstance(widget, tk.Label):
-                    self._force_theme_label(widget)
-                elif isinstance(widget, tk.Frame):
-                    self._force_theme_frame(widget)
                 elif isinstance(widget, ttk.Menubutton):
                     self._force_theme_menubutton(widget)
                 elif isinstance(widget, tk.Menu):
                     self._force_theme_menu(widget)
                 elif isinstance(widget, tk.Scale):
                     self._force_theme_scale(widget)
+                elif isinstance(widget, tk.Label):
+                    self._force_theme_label(widget)
+                elif isinstance(widget, tk.Frame):
+                    self._force_theme_frame(widget)
                 elif isinstance(widget,
                                 (tk.Tk,
                                  tk.Canvas,
@@ -480,20 +480,11 @@ class _Theme:
             window.title_bar.extends_content_into_title_bar = True
             title_gap['height'] = window.title_bar.height
 
-            if theme != self.THEME_TRANSPARENT:
-                # window.title_bar.reset_to_default()  # This makes it crash when switchthing back to default
-                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
-                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
-                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
-                window.title_bar.button_hover_background_color = self.hex_to_rgb(
-                    self.style.lookup('TButton', 'selectbackground'))
-            else:
+            if self.transparent.get():
                 self.set_title_buttons_background(Colors.transparent)
                 window.title_bar.background_color = Colors.transparent
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
-
-            if theme == self.THEME_TRANSPARENT:
                 # TODO prevent loss of focus when hovering the title bar area  # fixed by transparent_move,
                 # we just don't regain focus when hovering over the title bar,
                 # we have to hover over some visible widget first.
@@ -504,12 +495,16 @@ class _Theme:
                 self.binds['<Leave>'] = self.root.bind('<Leave>', self.transparent_move)
                 self.binds['<FocusOut>'] = self.root.bind('<FocusOut>', self.transparent_move)
             else:
+                # window.title_bar.reset_to_default()  # This makes it crash when switchthing back to default
+                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
+                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.button_hover_background_color = self.hex_to_rgb(
+                    self.style.lookup('TButton', 'selectbackground'))
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, win32con.WS_EX_APPWINDOW)  # Add to taskbar
                 for event, bind in self.binds.items():
                     self.root.unbind(event, bind)
                 self.binds.clear()
-
-            # self.binds['<<ThemeChanged>>'] = self.root.bind('<<ThemeChanged>>', self._force_theme)
         else:
             if dpy:
                 xroot = Window()
