@@ -15,6 +15,7 @@ import sys
 import tkinter as tk
 import warnings
 from tkinter import ttk
+from ttkHyperlinkLabel import HyperlinkLabel
 from typing import Callable
 from config import appname, config
 from EDMCLogging import get_main_logger
@@ -144,6 +145,9 @@ class _Theme:
         self.default_ui_scale: float | None = None  # None == not yet known
         self.startup_ui_scale: int | None = None
 
+    def load_additional_themes(self) -> None:
+        pass
+
     def initialize(self, root: tk.Tk):
         self.style = ttk.Style()
         self.root = root
@@ -158,6 +162,10 @@ class _Theme:
             try:
                 self.root.tk.call('source', theme_file)
                 logger.info(f'loading theme package from "{theme_file}"')
+                if theme_file.parent.name not in self.packages.values():
+                    self.packages[len(self.packages)] = theme_file.parent.name.lower()
+                    logger.info(self.packages)
+                    logger.info(f'Added theme to theme package "{theme_file.parent.name}"')
             except tk.TclError:
                 logger.exception(f'Failure loading theme package "{theme_file}"')
 
@@ -339,6 +347,10 @@ class _Theme:
         # logger.info('trough')
         widget.configure(troughcolor=colors['-bg'])
 
+    def _force_theme_hyperlink(self, widget) -> None:
+        widget.configure(background=self.style.lookup('Link.TLabel', 'background'))
+        widget.configure(foreground=self.style.lookup('Link.TLabel', 'foreground'))
+
     def _force_theme_base_plugins(self) -> None:
         """Force widgets that are immediately part of the root frame in the main ui and have to be forced seperately."""
         labels = [f'{appname.lower()}.cnv.in.cmdr_label',
@@ -396,6 +408,8 @@ class _Theme:
                     continue
                 elif isinstance(widget, tk.Button):
                     self._force_theme_button(widget)
+                elif isinstance(widget, HyperlinkLabel):
+                    self._force_theme_hyperlink(widget)
                 elif isinstance(widget, tk.Label):
                     self._force_theme_label(widget)
                 elif isinstance(widget, tk.Frame):

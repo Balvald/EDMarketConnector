@@ -715,6 +715,7 @@ class PreferencesDialog(tk.Toplevel):
         self.minimize_system_tray = tk.BooleanVar(value=config.get_bool('minimize_system_tray'))
         self.theme = tk.IntVar(value=config.get_int('theme'))
         self.theme_colors = [config.get_str('dark_text'), config.get_str('dark_highlight')]
+        self.theme_name = tk.StringVar(value=theme.packages[self.theme.get()])
         self.theme_prompts = [
             # LANG: Label for Settings > Appeareance > selection of 'normal' text colour
             tr.tl('Normal text'),		# Dark theme color setting
@@ -738,11 +739,22 @@ class PreferencesDialog(tk.Toplevel):
             columnspan=4, padx=self.PADX, pady=self.SEPY, sticky=tk.EW, row=row.get()
         )
 
-        # Appearance setting
-        # LANG: Label for Settings > Appearance > Theme selection
-        ttk.Label(appearance_frame, text=tr.tl('Theme')).grid(
-            columnspan=3, padx=self.PADX, pady=self.PADY, sticky=tk.W, row=row.get()
-        )
+        with row as cur_row:
+            # Appearance setting
+            # LANG: Label for Settings > Appearance > Theme selection
+            ttk.Label(appearance_frame, text=tr.tl('Theme')).grid(
+                columnspan=3, padx=self.PADX, pady=self.PADY, sticky=tk.W, row=cur_row
+            )
+
+            all_themes = [t.capitalize() for t in theme.packages.values()]
+            if sys.platform != 'win32':
+                all_themes.remove('Transparent')
+            self.theme_select = ttk.OptionMenu(appearance_frame,
+                                               self.theme_name,
+                                               self.theme_name.get().capitalize(),
+                                               *all_themes,
+                                               command=self.themevarchanged)
+            self.theme_select.grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
 
         # Appearance theme and language setting
         ttk.Radiobutton(
@@ -1165,9 +1177,18 @@ class PreferencesDialog(tk.Toplevel):
             self.theme_colors[index] = color
             self.themevarchanged()
 
-    def themevarchanged(self) -> None:
+    def themevarchanged(self, val=None) -> None:
         """Update theme examples."""
         self.theme_button_0['foreground'], self.theme_button_1['foreground'] = self.theme_colors
+
+        if val is not None:
+            logger.debug('Theme changed to %s', val)
+            # assuming val is string name
+            key = list(theme.packages.values()).index(val.lower())
+            if sys.platform != 'win32':
+                if key >= 2:  # Skip transparent on non-Windows
+                    key += 1
+            self.theme.set(key)
 
         if self.theme.get() == theme.THEME_DEFAULT:
             state = tk.DISABLED  # type: ignore
