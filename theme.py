@@ -320,24 +320,22 @@ class _Theme:
         return all_skips
 
     def _force_theme_checkbutton(self, widget) -> None:
-        colors = self.colors
         widget.configure(background=self.style.lookup('TCheckbutton', 'background'))
         widget.configure(foreground=self.style.lookup('TCheckbutton', 'foreground'))
         widget.configure(activebackground=self.style.lookup('TCheckbutton', 'background'))
         widget.configure(activeforeground=self.style.lookup('TCheckbutton', 'foreground'))
         widget.configure(indicatoron=True)
         widget.configure(selectcolor=self.style.lookup('TCheckbutton', 'background'))
-        widget.configure(disabledforeground=colors['-disabledfg'])
+        widget.configure(disabledforeground=self.colors['-disabledfg'])
 
     def _force_theme_radiobutton(self, widget) -> None:
-        colors = self.colors
         widget.configure(background=self.style.lookup('TRadiobutton', 'background'))
         widget.configure(foreground=self.style.lookup('TRadiobutton', 'foreground'))
         widget.configure(activebackground=self.style.lookup('TRadiobutton', 'background'))
         widget.configure(activeforeground=self.style.lookup('TRadiobutton', 'foreground'))
         widget.configure(indicatoron=True)
         widget.configure(selectcolor=self.style.lookup('TRadiobutton', 'background'))
-        widget.configure(disabledforeground=colors['-disabledfg'])
+        widget.configure(disabledforeground=self.colors['-disabledfg'])
 
     def _force_theme(self) -> None:
         logger.info('Forcing theme change')
@@ -368,9 +366,11 @@ class _Theme:
              or .!preferencesdialog.!frame.!notebook
            * When you want to skip a widget in the main ui
              it needs to start with ".edmarketconnector.cnv.in.plugin_{number}"
+           * only needed if the widget is a tk.Checkbutton or tk.Radiobutton.
         """
         logger.info(f'Registering skip for {widget}')
         self.force_skips.append(str(widget))
+        # not sure if anyone needs this or if they all just use the ttk.Checkbutton and ttk.Radiobutton
 
     def apply(self) -> None:
         logger.info('Applying theme')
@@ -384,10 +384,10 @@ class _Theme:
 
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
-            # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
-            # all widgets upon the second theme change we have to force it
+            # load colors from the current theme into self.colors
             self.load_colors()
             # call tk_setPalette to apply the theme to all widgets
+            # these are mostly tk widgets or tk widgets that are part of more complex ttk widgets
             self.root.tk.call('tk_setPalette',
                               'activeBackground', self.colors['-selectbg'],
                               'activeForeground', self.colors['-selectfg'],
@@ -401,6 +401,8 @@ class _Theme:
                               'insertBackground', self.colors['-fg'],
                               'selectColor', self.colors['-selectbg'],
                               'troughColor', self.colors['-bg'])
+            # Because tk.Radiobutton and tk.Checkbutton cannot be properly read with the settings of the
+            # tk_setPalette call we have to additionally force a fitting theme for them.
             self._force_theme()
         except tk.TclError:
             logger.exception(f'Failure setting theme: {self.packages[theme]}')
