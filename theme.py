@@ -119,14 +119,13 @@ elif sys.platform == 'linux':
 
 
 class _Theme:
-    # TODO ditch indexes, support additional themes in user folder
-    THEME_DEFAULT = 0
-    THEME_DARK = 1
-    THEME_TRANSPARENT = 2
+    # THEME_DEFAULT = 0
+    # THEME_DARK = 1
+    # THEME_TRANSPARENT = 2
     packages = {
-        THEME_DEFAULT: 'light',  # 'default' is the name of a builtin theme
-        THEME_DARK: 'dark',
-        THEME_TRANSPARENT: 'transparent',
+        'light': 'light',  # 'default' is the name of a builtin theme
+        'dark': 'dark',
+        'transparent': 'transparent',
     }
     style: ttk.Style
     root: tk.Tk
@@ -161,7 +160,7 @@ class _Theme:
                 self.root.tk.call('source', theme_file)
                 logger.info(f'loading theme package from "{theme_file}"')
                 if theme_file.parent.name not in self.packages.values():
-                    self.packages[len(self.packages)] = theme_file.parent.name.lower()
+                    self.packages[theme_file.parent.name.lower()] = theme_file.parent.name.lower()
             except tk.TclError:
                 logger.exception(f'Failure loading theme package "{theme_file}"')
 
@@ -249,7 +248,7 @@ class _Theme:
         # and store them in the colors dict
 
         # get the current theme
-        theme = config.get_int('theme')
+        theme = config.get_str('theme')
         theme_name = self.packages[theme]
 
         # get the path to the theme file
@@ -374,13 +373,13 @@ class _Theme:
 
     def apply(self) -> None:
         logger.info('Applying theme')
-        theme = config.get_int('theme')
+        theme = config.get_str('theme')
         transparent = config.get_bool('transparent')
 
-        if theme >= len(self.packages.values()):
+        """if theme not in self.packages.values() or theme not in self.packages.keys():
             # The theme that was used before must have been deleted
-            theme = self.THEME_DEFAULT
-            config.set('theme', self.THEME_DEFAULT)
+            theme = 'light'  # self.THEME_DEFAULT
+            config.set('theme', 'light')"""
 
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
@@ -454,7 +453,7 @@ class _Theme:
                 children = Window()
                 nchildren = c_uint()
                 XQueryTree(dpy, self.root.winfo_id(), byref(xroot), byref(parent), byref(children), byref(nchildren))
-                if theme == self.THEME_DEFAULT:
+                if theme == 'light':  # self.THEME_DEFAULT:
                     wm_hints = motif_wm_hints_normal
                 else:  # Dark *or* Transparent
                     wm_hints = motif_wm_hints_dark

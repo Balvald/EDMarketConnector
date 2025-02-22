@@ -713,9 +713,11 @@ class PreferencesDialog(tk.Toplevel):
         self.lang = tk.StringVar(value=self.languages.get(config.get_str('language'), tr.tl('Default')))
         self.always_ontop = tk.BooleanVar(value=bool(config.get_int('always_ontop')))
         self.minimize_system_tray = tk.BooleanVar(value=config.get_bool('minimize_system_tray'))
-        self.theme = tk.IntVar(value=config.get_int('theme'))
+        self.theme = tk.StringVar(value=config.get_str('theme'))
         self.theme_colors = [config.get_str('dark_text'), config.get_str('dark_highlight')]
-        self.theme_name = tk.StringVar(value=theme.packages[self.theme.get()])
+        if self.theme.get() not in theme.packages.keys():
+            self.theme.set('light')
+        self.theme_name = tk.StringVar(value=theme.packages[str(self.theme.get())])
         self.theme_prompts = [
             # LANG: Label for Settings > Appeareance > selection of 'normal' text colour
             tr.tl('Normal text'),		# Dark theme color setting
@@ -1170,7 +1172,7 @@ class PreferencesDialog(tk.Toplevel):
         """Update theme examples."""
         self.theme_button_0['foreground'], self.theme_button_1['foreground'] = self.theme_colors
 
-        if self.theme.get() == theme.THEME_DEFAULT:
+        if self.theme.get() == 'light':  # theme.THEME_DEFAULT:
             state = tk.DISABLED  # type: ignore
         else:
             state = tk.NORMAL  # type: ignore
@@ -1182,18 +1184,16 @@ class PreferencesDialog(tk.Toplevel):
 
     def themechanged(self, val=None) -> None:
         """Update theme."""
-        logger.info(f'transparent {self.transparent.get()} and {val}')
-
-        theme.transparent.set(self.transparent.get())
+        if sys.platform == 'win32':
+            theme.transparent.set(self.transparent.get())
+        else:
+            theme.transparent.set(False)
 
         if val not in [None, True, False]:
             logger.debug('Theme changed to %s', val)
             # assuming val is string name
-            key = list(theme.packages.values()).index(val.lower())
-            if sys.platform != 'win32':
-                if key >= 2:  # Skip transparent on non-Windows
-                    key += 1
-            self.theme.set(key)
+            self.theme.set(val.lower())
+            self.theme_name.set(val.capitalize())
 
         self.themevarchanged()
 
@@ -1309,7 +1309,8 @@ class PreferencesDialog(tk.Toplevel):
         config.set('theme', self.theme.get())
         config.set('dark_text', self.theme_colors[0])
         config.set('dark_highlight', self.theme_colors[1])
-        config.set('transparent', self.transparent.get())
+        if sys.platform == 'win32':
+            config.set('transparent', self.transparent.get())
         theme.apply()
         if self.plugdir.get() != config.get_str('plugin_dir'):
             config.set(
