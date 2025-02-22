@@ -146,10 +146,7 @@ class _Theme:
         self.default_ui_scale: float | None = None  # None == not yet known
         self.startup_ui_scale: int | None = None
 
-    def load_additional_themes(self) -> None:
-        pass
-
-    def initialize(self, root: tk.Tk):
+    def initialize(self, root: tk.Tk) -> None:
         self.style = ttk.Style()
         self.root = root
         if not config.get_bool('transparent'):
@@ -249,7 +246,7 @@ class _Theme:
     # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
     # all widgets upon the second theme change we have to force it
 
-    def load_colors(self):
+    def load_colors(self) -> None:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
 
@@ -301,57 +298,6 @@ class _Theme:
             newlen = len(all_widgets)
         return all_widgets
 
-    def _force_theme_menubutton(self, widget) -> None:
-        # get colors from map
-        background = self.style.map('TMenubutton', 'background')
-        foreground = self.style.map('TMenubutton', 'foreground')
-        self.style.configure('TMenubutton', background=self.style.lookup('TMenubutton', 'background'))
-        self.style.configure('TMenubutton', foreground=self.style.lookup('TMenubutton', 'foreground'))
-        self.style.map('TMenubutton', background=[('active', background[0][1])])
-        self.style.map('TMenubutton', foreground=[('active', foreground[0][1])])
-
-    def _force_theme_menu(self, widget) -> None:
-        colors = self.colors
-        widget.configure(background=self.style.lookup('TMenu', 'background'))
-        widget.configure(foreground=self.style.lookup('TMenu', 'foreground'))
-        widget.configure(activebackground=colors['-selectbg'])
-        widget.configure(activeforeground=colors['-selectfg'])
-
-    def _force_theme_button(self, widget) -> None:
-        colors = self.colors
-        widget.configure(background=self.style.lookup('TButton', 'background'))
-        widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
-        widget.configure(activebackground=colors['-selectbg'])
-        widget.configure(activeforeground=colors['-selectfg'])
-
-    def _force_theme_label(self, widget) -> None:
-        widget.configure(background=self.style.lookup('TLabel', 'background'))
-        widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
-
-    def _force_theme_frame(self, widget) -> None:
-        widget.configure(background=self.style.lookup('TFrame', 'background'))
-
-    def _force_theme_scale(self, widget) -> None:
-        # get colors from the current theme
-        # keys are -fg, -bg, -disabledfg, -selectfg, -selectbg -highlight
-        colors = self.colors
-        # logger.info('foreground')
-        widget.configure(foreground=colors['-fg'])
-        # logger.info('highlightbackground')
-        widget.configure(highlightbackground=colors['-bg'])
-        # logger.info('activebackground')
-        widget.configure(activebackground=colors['-selectbg'])
-        # logger.info('background')
-        widget.configure(background=colors['-bg'])
-        # logger.info('highlight')
-        widget.configure(highlightcolor=colors['-highlight'])
-        # logger.info('trough')
-        widget.configure(troughcolor=colors['-bg'])
-
-    def _force_theme_hyperlink(self, widget) -> None:
-        widget.configure(background=self.style.lookup('Link.TLabel', 'background'))
-        widget.configure(foreground=self.style.lookup('Link.TLabel', 'foreground'))
-
     def _force_theme_base_plugins(self) -> None:
         """Force widgets that are immediately part of the root frame in the main ui and have to be forced seperately."""
         labels = [f'{appname.lower()}.cnv.in.cmdr_label',
@@ -366,7 +312,7 @@ class _Theme:
         for label in labels:
             self._force_theme_label(self.root.nametowidget(label))
 
-    def _force_theme_get_skips(self):
+    def _force_theme_get_skips(self) -> list[str]:
         prefscount = self.prefsdialog_count
         if prefscount == 1:
             prefscount = ""
@@ -388,7 +334,184 @@ class _Theme:
 
         return all_skips
 
-    def _force_theme(self):
+    def _force_theme_button(self, widget) -> None:
+        colors = self.colors
+        widget.configure(background=self.style.lookup('TButton', 'background'))
+        widget.configure(foreground=self.style.lookup('TButton', 'foreground'))
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(activeforeground=colors['-selectfg'])
+
+    def _force_theme_checkbutton(self, widget) -> None:
+        colors = self.colors
+        widget.configure(background=self.style.lookup('TCheckbutton', 'background'))
+        widget.configure(foreground=self.style.lookup('TCheckbutton', 'foreground'))
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(activeforeground=colors['-selectfg'])
+        widget.configure(indicatoron=True)
+        widget.configure(selectcolor=self.style.lookup('TCheckbutton', 'background'))
+        widget.configure(disabledforeground=colors['-disabledfg'])
+
+    def _force_theme_Combobox(self, widget) -> None:
+        colors = self.colors
+        background = self.style.lookup('TCombobox', 'background')
+        foreground = self.style.lookup('TCombobox', 'foreground')
+        logger.info(f'background: {background}')
+        logger.info(f'foreground: {foreground}')
+        self.style.configure('TCombobox', background=background)
+        self.style.configure('TCombobox', foreground=foreground)
+        self.style.configure('TCombobox', arrowcolor=foreground)
+        self.style.map('TCombobox', background=[('active', colors['-selectbg'])])
+        self.style.map('TCombobox', foreground=[('active', colors['-selectfg'])])
+        self.style.map('TCombobox', background=[('readonly', colors['-bg'])])
+        self.style.map('TCombobox', foreground=[('readonly', colors['-fg'])])
+
+    def _force_theme_entry(self, widget) -> None:
+        colors = self.colors
+        background = self.style.lookup('TEntry', 'background')
+        foreground = self.style.lookup('TEntry', 'foreground')
+        if isinstance(widget, ttk.Entry):
+            self.style.configure('TEntry', background=background)
+            self.style.configure('TEntry', foreground=foreground)
+            self.style.map('TEntry', background=[('active', colors['-selectbg'])])
+            self.style.map('TEntry', foreground=[('active', colors['-selectfg'])])
+        elif isinstance(widget, tk.Entry):
+            widget.configure(background=background)
+            widget.configure(foreground=foreground)
+            widget.configure(selectbackground=colors['-selectbg'])
+            widget.configure(selectforeground=colors['-selectfg'])
+            widget.configure(disabledforeground=colors['-disabledfg'])
+            widget.configure(highlightcolor=colors['-highlight'])
+            widget.configure(insertbackground=colors['-fg'])
+
+    def _force_theme_frame(self, widget) -> None:
+        widget.configure(background=self.style.lookup('TFrame', 'background'))
+
+    def _force_theme_hyperlink(self, widget) -> None:
+        widget.configure(background=self.style.lookup('Link.TLabel', 'background'))
+        widget.configure(foreground=self.style.lookup('Link.TLabel', 'foreground'))
+
+    def _force_theme_label(self, widget) -> None:
+        widget.configure(background=self.style.lookup('TLabel', 'background'))
+        widget.configure(foreground=self.style.lookup('TLabel', 'foreground'))
+
+    def _force_theme_menu(self, widget) -> None:
+        colors = self.colors
+        widget.configure(background=self.style.lookup('TMenu', 'background'))
+        widget.configure(foreground=self.style.lookup('TMenu', 'foreground'))
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(activeforeground=colors['-selectfg'])
+
+    def _force_theme_menubutton(self, widget) -> None:
+        background = self.style.map('TMenubutton', 'background')
+        foreground = self.style.map('TMenubutton', 'foreground')
+        if isinstance(widget, ttk.Menubutton):
+            self.style.configure('TMenubutton', background=self.style.lookup('TMenubutton', 'background'))
+            self.style.configure('TMenubutton', foreground=self.style.lookup('TMenubutton', 'foreground'))
+            self.style.map('TMenubutton', background=[('active', background[0][1])])
+            self.style.map('TMenubutton', foreground=[('active', foreground[0][1])])
+        elif isinstance(widget, (tk.Menubutton, tk.OptionMenu)):
+            widget.configure(background=self.style.lookup('TMenubutton', 'background'))
+            widget.configure(foreground=self.style.lookup('TMenubutton', 'foreground'))
+            widget.configure(activebackground=background[0][1])
+            widget.configure(activeforeground=foreground[0][1])
+        if isinstance(widget, tk.OptionMenu):
+            widget.configure(highlightbackground=self.style.lookup('TMenubutton', 'background'))
+
+    def _force_theme_radiobutton(self, widget) -> None:
+        colors = self.colors
+        widget.configure(background=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(foreground=self.style.lookup('TRadiobutton', 'foreground'))
+        widget.configure(activebackground=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(activeforeground=self.style.lookup('TRadiobutton', 'foreground'))
+        widget.configure(indicatoron=True)
+        widget.configure(selectcolor=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(disabledforeground=colors['-disabledfg'])
+
+    def _force_theme_scale(self, widget) -> None:
+        # get colors from the current theme
+        # keys are -fg, -bg, -disabledfg, -selectfg, -selectbg -highlight
+        colors = self.colors
+        widget.configure(foreground=colors['-fg'])
+        widget.configure(highlightbackground=colors['-bg'])
+        widget.configure(activebackground=colors['-selectbg'])
+        widget.configure(background=colors['-bg'])
+        widget.configure(highlightcolor=colors['-highlight'])
+        widget.configure(troughcolor=colors['-bg'])
+
+    def _force_theme_spinbox(self, widget) -> None:
+        colors = self.colors
+        background = self.style.lookup('TSpinbox', 'background')
+        foreground = self.style.lookup('TSpinbox', 'foreground')
+        logger.info(f'background: {background}')
+        logger.info(f'foreground: {foreground}')
+        if isinstance(widget, ttk.Spinbox):
+            self.style.configure('TSpinbox', background=self.style.lookup('TSpinbox', 'background'))
+            self.style.configure('TSpinbox', foreground=self.style.lookup('TSpinbox', 'foreground'))
+            self.style.map('TSpinbox', background=[('active', colors['-selectbg'])])
+            self.style.map('TSpinbox', foreground=[('active', colors['-selectfg'])])
+            self.style.map('TSpinbox', background=[('disabled', colors['-bg'])])
+            self.style.map('TSpinbox', foreground=[('disabled', colors['-disabledfg'])])
+        elif isinstance(widget, tk.Spinbox):
+            widget.configure(background=background)
+            widget.configure(foreground=foreground)
+            widget.configure(activebackground=colors['-selectbg'])
+            widget.configure(insertbackground=colors['-fg'])
+            widget.configure(disabledforeground=colors['-disabledfg'])
+            widget.configure(highlightcolor=colors['-highlight'])
+            widget.configure(selectbackground=colors['-selectbg'])
+            widget.configure(selectforeground=colors['-selectfg'])
+
+    def _force_theme_widget(self, widget, all_skips) -> None:  # noqa: C901 CCR001
+        try:
+            if str(widget) in all_skips:
+                return
+            elif isinstance(widget,
+                            (tk.Tk,
+                             tk.Canvas,
+                             ttk.Scale,
+                             ttk.Treeview,
+                             ttk.Checkbutton,
+                             ttk.Frame,
+                             ttk.Separator,
+                             ttk.Scrollbar,
+                             ttk.Notebook,
+                             ttk.Radiobutton,
+                             ttk.Button,
+                             ttk.LabelFrame,
+                             ttk.PanedWindow,
+                             ttk.Progressbar,
+                             prefs.PreferencesDialog)):
+                return
+            elif isinstance(widget, tk.Button):
+                self._force_theme_button(widget)
+            elif isinstance(widget, tk.Checkbutton):
+                self._force_theme_checkbutton(widget)
+            elif isinstance(widget, ttk.Combobox):
+                self._force_theme_Combobox(widget)
+            elif isinstance(widget, (tk.Entry, ttk.Entry)):
+                self._force_theme_entry(widget)
+            elif isinstance(widget, tk.Frame):
+                self._force_theme_frame(widget)
+            elif isinstance(widget, HyperlinkLabel):
+                self._force_theme_hyperlink(widget)
+            elif isinstance(widget, tk.Label):
+                self._force_theme_label(widget)
+            elif isinstance(widget, tk.Menu):
+                self._force_theme_menu(widget)
+            elif isinstance(widget, (tk.Menubutton, ttk.Menubutton, tk.OptionMenu)):
+                self._force_theme_menubutton(widget)
+            elif isinstance(widget, tk.Radiobutton):
+                self._force_theme_radiobutton(widget)
+            elif isinstance(widget, tk.Scale):
+                self._force_theme_scale(widget)
+            elif isinstance(widget, (tk.Spinbox, ttk.Spinbox)):
+                self._force_theme_spinbox(widget)
+            else:
+                self._force_theme_label(widget)
+        except Exception as e:
+            logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
+
+    def _force_theme(self) -> None:
         logger.info('Forcing theme change')
 
         if sys.platform == 'win32':
@@ -404,40 +527,7 @@ class _Theme:
         all_widgets = self._get_all_widgets()
 
         for widget in all_widgets:
-            try:
-                if str(widget) in all_skips:
-                    continue
-                elif isinstance(widget, tk.Button):
-                    self._force_theme_button(widget)
-                elif isinstance(widget, HyperlinkLabel):
-                    self._force_theme_hyperlink(widget)
-                elif isinstance(widget, ttk.Menubutton):
-                    self._force_theme_menubutton(widget)
-                elif isinstance(widget, tk.Menu):
-                    self._force_theme_menu(widget)
-                elif isinstance(widget, tk.Scale):
-                    self._force_theme_scale(widget)
-                elif isinstance(widget, tk.Label):
-                    self._force_theme_label(widget)
-                elif isinstance(widget, tk.Frame):
-                    self._force_theme_frame(widget)
-                elif isinstance(widget,
-                                (tk.Tk,
-                                 tk.Canvas,
-                                 tk.Checkbutton,
-                                 ttk.Checkbutton,
-                                 ttk.Frame,
-                                 ttk.Separator,
-                                 ttk.Scrollbar,
-                                 ttk.Notebook,
-                                 ttk.Radiobutton,
-                                 ttk.Button,
-                                 prefs.PreferencesDialog)):
-                    continue
-                else:
-                    self._force_theme_label(widget)
-            except Exception as e:
-                logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
+            self._force_theme_widget(widget, all_skips)
 
     def register_skip(self, widget: tk.Widget, prefs: bool = False) -> None:
         """
