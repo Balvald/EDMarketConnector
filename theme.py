@@ -293,6 +293,7 @@ class _Theme:
                     for child in widget_children:
                         if child not in all_widgets:
                             all_widgets.append(child)
+                            logger.info(f'Added {child} to all_widgets')
                 except Exception as e:
                     logger.error(f'Error getting children of {widget}: {e}')
             newlen = len(all_widgets)
@@ -351,19 +352,40 @@ class _Theme:
         widget.configure(selectcolor=self.style.lookup('TCheckbutton', 'background'))
         widget.configure(disabledforeground=colors['-disabledfg'])
 
-    def _force_theme_Combobox(self, widget) -> None:
+    def _force_theme_combobox(self, widget) -> None:
         colors = self.colors
         background = self.style.lookup('TCombobox', 'background')
         foreground = self.style.lookup('TCombobox', 'foreground')
         logger.info(f'background: {background}')
         logger.info(f'foreground: {foreground}')
+        logger.info(f'_w: {widget._w}')
         self.style.configure('TCombobox', background=background)
         self.style.configure('TCombobox', foreground=foreground)
         self.style.configure('TCombobox', arrowcolor=foreground)
+        self.style.configure('TCombobox', fieldbackground=background)
+        self.style.configure('TCombobox', selectbackground=colors['-selectbg'])
+        self.style.configure('TCombobox', selectforeground=colors['-selectfg'])
         self.style.map('TCombobox', background=[('active', colors['-selectbg'])])
         self.style.map('TCombobox', foreground=[('active', colors['-selectfg'])])
         self.style.map('TCombobox', background=[('readonly', colors['-bg'])])
         self.style.map('TCombobox', foreground=[('readonly', colors['-fg'])])
+        self.style.map('TCombobox', fieldbackground=[('active', colors['-bg'])])
+        self.style.map('TCombobox', fieldbackground=[('readonly', colors['-bg'])])
+        widget.configure(background=background)
+        widget.configure(foreground=foreground)
+
+    def _force_theme_combobox_listbox(self, event) -> None:
+        # check for skip
+        if str(event.widget) in self.force_skips:
+            return
+        if isinstance(event.widget, str) and event.widget.endswith('.popdown.f.l'):
+            event.widget = self.root.nametowidget(event.widget)
+            if isinstance(event.widget, tk.Listbox):
+                event.widget.configure(background=self.style.lookup('TCombobox', 'background'))
+                event.widget.configure(foreground=self.style.lookup('TCombobox', 'foreground'))
+                event.widget.configure(selectbackground=self.colors['-selectbg'])
+                event.widget.configure(selectforeground=self.colors['-selectfg'])
+                event.widget.configure(disabledforeground=self.colors['-disabledfg'])
 
     def _force_theme_entry(self, widget) -> None:
         colors = self.colors
@@ -374,6 +396,8 @@ class _Theme:
             self.style.configure('TEntry', foreground=foreground)
             self.style.map('TEntry', background=[('active', colors['-selectbg'])])
             self.style.map('TEntry', foreground=[('active', colors['-selectfg'])])
+            widget.configure(background=background)
+            widget.configure(foreground=foreground)
         elif isinstance(widget, tk.Entry):
             widget.configure(background=background)
             widget.configure(foreground=foreground)
@@ -442,8 +466,6 @@ class _Theme:
         colors = self.colors
         background = self.style.lookup('TSpinbox', 'background')
         foreground = self.style.lookup('TSpinbox', 'foreground')
-        logger.info(f'background: {background}')
-        logger.info(f'foreground: {foreground}')
         if isinstance(widget, ttk.Spinbox):
             self.style.configure('TSpinbox', background=self.style.lookup('TSpinbox', 'background'))
             self.style.configure('TSpinbox', foreground=self.style.lookup('TSpinbox', 'foreground'))
@@ -487,7 +509,7 @@ class _Theme:
             elif isinstance(widget, tk.Checkbutton):
                 self._force_theme_checkbutton(widget)
             elif isinstance(widget, ttk.Combobox):
-                self._force_theme_Combobox(widget)
+                self._force_theme_combobox(widget)
             elif isinstance(widget, (tk.Entry, ttk.Entry)):
                 self._force_theme_entry(widget)
             elif isinstance(widget, tk.Frame):
@@ -529,21 +551,18 @@ class _Theme:
         for widget in all_widgets:
             self._force_theme_widget(widget, all_skips)
 
-    def register_skip(self, widget: tk.Widget, prefs: bool = False) -> None:
+    def register_skip(self, widget: tk.Widget) -> None:
         """
         Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
 
            * Because _force_theme will just assign the theme even if the plugin creator had something else in mind.
+           * When you want to skip a widget in the preferencesdialog it needs to start with ".!preferencesdialog"
+             or .!preferencesdialog.!frame.!notebook
+           * When you want to skip a widget in the main ui
+             it needs to start with ".edmarketconnector.cnv.in.plugin_{number}"
         """
-        # If we are in prefs the widget needs to start with .!preferencesdialog{number}.!frame.!notebook
-        # If we are looking at a widget that is part of the main ui it needs to start with:
-        # .edmarketconnector.cnv.in.plugin_{number}.!frame
         logger.info(f'Registering skip for {widget}')
-        if prefs:
-            logger.info('this one is supposed to be a Prefs skip')
-        else:
-            logger.info('this one is supposed to be a main ui skip')
-        # self.force_skips.append(str(widget))
+        self.force_skips.append(str(widget))
 
     def apply(self) -> None:
         logger.info('Applying theme')
