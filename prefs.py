@@ -748,41 +748,25 @@ class PreferencesDialog(tk.Toplevel):
 
             all_themes = [t.capitalize() for t in theme.packages.values()]
             if sys.platform != 'win32':
+                # Need to remove 'Transparent' on non-Windows platforms
+                # May want to rename Transparent to something more fitting as it does not need to be
+                # transparent.
                 all_themes.remove('Transparent')
-            self.theme_select = ttk.OptionMenu(appearance_frame,
-                                               self.theme_name,
-                                               self.theme_name.get().capitalize(),
-                                               *all_themes,
-                                               command=self.themevarchanged)
-            self.theme_select.grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
-
-        # Appearance theme and language setting
-        # ttk.Radiobutton(
-        #     # LANG: Label for 'Default' theme radio button
-        #     appearance_frame, text=tr.tl('Default'), variable=self.theme,
-        #     value=theme.THEME_DEFAULT, command=self.themevarchanged
-        # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
-
-        # Appearance theme setting
-        # ttk.Radiobutton(
-        #     # LANG: Label for 'Dark' theme radio button
-        #     appearance_frame, text=tr.tl('Dark'), variable=self.theme,
-        #     value=theme.THEME_DARK, command=self.themevarchanged
-        # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
+            ttk.OptionMenu(
+                appearance_frame,
+                self.theme_name,
+                self.theme_name.get().capitalize(),
+                *all_themes,
+                command=self.themechanged
+            ).grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
 
         if sys.platform == 'win32':
-            # ttk.Radiobutton(
-            #     appearance_frame,
-            #     # LANG: Label for 'Transparent' theme radio button
-            #     text=tr.tl('Transparent'),  # Appearance theme setting
-            #     variable=self.theme,
-            #     value=theme.THEME_TRANSPARENT,
-            #     command=self.themevarchanged
-            # ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
+            self.transparent = tk.BooleanVar(value=config.get_bool('transparent'))
             ttk.Checkbutton(
                 appearance_frame,
                 text=tr.tl('Transparent'),
-                variable=theme.transparent
+                variable=self.transparent,
+                command=self.themechanged
             ).grid(columnspan=3, padx=self.BUTTONX, pady=self.PADY, sticky=tk.W, row=row.get())
 
         with row as cur_row:
@@ -1186,7 +1170,23 @@ class PreferencesDialog(tk.Toplevel):
         """Update theme examples."""
         self.theme_button_0['foreground'], self.theme_button_1['foreground'] = self.theme_colors
 
-        if val is not None:
+        if self.theme.get() == theme.THEME_DEFAULT:
+            state = tk.DISABLED  # type: ignore
+        else:
+            state = tk.NORMAL  # type: ignore
+
+        self.theme_label_0['state'] = state
+        self.theme_label_1['state'] = state
+        self.theme_button_0['state'] = state
+        self.theme_button_1['state'] = state
+
+    def themechanged(self, val=None) -> None:
+        """Update theme."""
+        logger.info(f'transparent {self.transparent.get()} and {val}')
+
+        theme.transparent.set(self.transparent.get())
+
+        if val not in [None, True, False]:
             logger.debug('Theme changed to %s', val)
             # assuming val is string name
             key = list(theme.packages.values()).index(val.lower())
@@ -1195,16 +1195,7 @@ class PreferencesDialog(tk.Toplevel):
                     key += 1
             self.theme.set(key)
 
-        if self.theme.get() == theme.THEME_DEFAULT:
-            state = tk.DISABLED  # type: ignore
-
-        else:
-            state = tk.NORMAL  # type: ignore
-
-        self.theme_label_0['state'] = state
-        self.theme_label_1['state'] = state
-        self.theme_button_0['state'] = state
-        self.theme_button_1['state'] = state
+        self.themevarchanged()
 
     def hotkeystart(self, event: 'tk.Event[Any]') -> None:
         """Start listening for hotkeys."""
@@ -1318,6 +1309,7 @@ class PreferencesDialog(tk.Toplevel):
         config.set('theme', self.theme.get())
         config.set('dark_text', self.theme_colors[0])
         config.set('dark_highlight', self.theme_colors[1])
+        config.set('transparent', self.transparent.get())
         theme.apply()
         if self.plugdir.get() != config.get_str('plugin_dir'):
             config.set(

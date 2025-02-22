@@ -141,6 +141,7 @@ class _Theme:
 
     def __init__(self) -> None:
         self.active: int | None = None  # Starts out with no theme
+        self.active_transparent: bool | None = None
         self.minwidth: int | None = None
         self.default_ui_scale: float | None = None  # None == not yet known
         self.startup_ui_scale: int | None = None
@@ -151,6 +152,8 @@ class _Theme:
     def initialize(self, root: tk.Tk):
         self.style = ttk.Style()
         self.root = root
+        if not config.get_bool('transparent'):
+            config.set('transparent', False)
         self.transparent = tk.BooleanVar(value=config.get_bool('transparent'))
         # Default dark theme colors
         if not config.get_str('dark_text'):
@@ -457,6 +460,7 @@ class _Theme:
     def apply(self) -> None:
         logger.info('Applying theme')
         theme = config.get_int('theme')
+        transparent = config.get_bool('transparent')
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
             # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
@@ -466,9 +470,10 @@ class _Theme:
         except tk.TclError:
             logger.exception(f'Failure setting theme: {self.packages[theme]}')
 
-        if self.active == theme:
+        if self.active == theme and self.active_transparent == transparent:
             return  # Don't need to mess with the window manager
         self.active = theme
+        self.active_transparent = transparent
 
         self.root.withdraw()
         self.root.update_idletasks()  # Size gets recalculated here
