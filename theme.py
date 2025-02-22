@@ -167,8 +167,6 @@ class _Theme:
                 logger.info(f'loading theme package from "{theme_file}"')
                 if theme_file.parent.name not in self.packages.values():
                     self.packages[len(self.packages)] = theme_file.parent.name.lower()
-                    logger.info(self.packages)
-                    logger.info(f'Added theme to theme package "{theme_file.parent.name}"')
             except tk.TclError:
                 logger.exception(f'Failure loading theme package "{theme_file}"')
 
@@ -461,6 +459,12 @@ class _Theme:
         logger.info('Applying theme')
         theme = config.get_int('theme')
         transparent = config.get_bool('transparent')
+
+        if theme >= len(self.packages.values()):
+            # The theme that was used before must have been deleted
+            theme = self.THEME_DEFAULT
+            config.set('theme', self.THEME_DEFAULT)
+
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
             # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
