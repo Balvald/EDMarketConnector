@@ -1,5 +1,5 @@
 simplesystray==0.1.0
-pywin32==306
+pywin32==308
 
 winrt-Microsoft.UI==2.2.0
 winrt-Microsoft.UI.Interop==2.2.0
