@@ -10,14 +10,12 @@ Believe us, this used to be much worse before ttk's theme support was properly l
 from __future__ import annotations
 
 import os
-import prefs
 import sys
 import tkinter as tk
 import warnings
 from tkinter import ttk
-from ttkHyperlinkLabel import HyperlinkLabel
 from typing import Callable
-from config import appname, config
+from config import config
 from EDMCLogging import get_main_logger
 
 logger = get_main_logger()
@@ -341,20 +339,6 @@ class _Theme:
         widget.configure(selectcolor=self.style.lookup('TRadiobutton', 'background'))
         widget.configure(disabledforeground=colors['-disabledfg'])
 
-    def _force_theme_widget(self, widget, all_skips) -> None:  # noqa: C901 CCR001
-        try:
-            if str(widget) in all_skips:
-                return
-            elif isinstance(widget, tk.Checkbutton):
-                self._force_theme_checkbutton(widget)
-            elif isinstance(widget, tk.Radiobutton):
-                self._force_theme_radiobutton(widget)
-            else:
-                # self._force_theme_label(widget)
-                return
-        except Exception as e:
-            logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
-
     def _force_theme(self) -> None:
         logger.info('Forcing theme change')
 
@@ -363,7 +347,17 @@ class _Theme:
         all_widgets = self._get_all_widgets()
 
         for widget in all_widgets:
-            self._force_theme_widget(widget, all_skips)
+            try:
+                if str(widget) in all_skips:
+                    continue
+                elif isinstance(widget, tk.Checkbutton):
+                    self._force_theme_checkbutton(widget)
+                elif isinstance(widget, tk.Radiobutton):
+                    self._force_theme_radiobutton(widget)
+                else:
+                    continue
+            except Exception as e:
+                logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
 
     def register_skip(self, widget: tk.Widget) -> None:
         """
