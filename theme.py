@@ -293,7 +293,7 @@ class _Theme:
                     for child in widget_children:
                         if child not in all_widgets:
                             all_widgets.append(child)
-                            logger.info(f'Added {child} to all_widgets')
+                            # logger.info(f'Added {child} to all_widgets')
                 except Exception as e:
                     logger.error(f'Error getting children of {widget}: {e}')
             newlen = len(all_widgets)
@@ -356,9 +356,6 @@ class _Theme:
         colors = self.colors
         background = self.style.lookup('TCombobox', 'background')
         foreground = self.style.lookup('TCombobox', 'foreground')
-        logger.info(f'background: {background}')
-        logger.info(f'foreground: {foreground}')
-        logger.info(f'_w: {widget._w}')
         self.style.configure('TCombobox', background=background)
         self.style.configure('TCombobox', foreground=foreground)
         self.style.configure('TCombobox', arrowcolor=foreground)
@@ -374,18 +371,10 @@ class _Theme:
         widget.configure(background=background)
         widget.configure(foreground=foreground)
 
-    def _force_theme_combobox_listbox(self, event) -> None:
-        # check for skip
-        if str(event.widget) in self.force_skips:
-            return
-        if isinstance(event.widget, str) and event.widget.endswith('.popdown.f.l'):
-            event.widget = self.root.nametowidget(event.widget)
-            if isinstance(event.widget, tk.Listbox):
-                event.widget.configure(background=self.style.lookup('TCombobox', 'background'))
-                event.widget.configure(foreground=self.style.lookup('TCombobox', 'foreground'))
-                event.widget.configure(selectbackground=self.colors['-selectbg'])
-                event.widget.configure(selectforeground=self.colors['-selectfg'])
-                event.widget.configure(disabledforeground=self.colors['-disabledfg'])
+        widget.tk.call('option', 'add', '*TCombobox*Listbox.background', background)
+        widget.tk.call('option', 'add', '*TCombobox*Listbox.foreground', foreground)
+        widget.tk.call('option', 'add', '*TCombobox*Listbox.selectBackground', colors['-selectbg'])
+        widget.tk.call('option', 'add', '*TCombobox*Listbox.selectForeground', colors['-selectfg'])
 
     def _force_theme_entry(self, widget) -> None:
         colors = self.colors
