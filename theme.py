@@ -244,10 +244,12 @@ class _Theme:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
         # get the current theme
-        theme = config.get_str('theme_name').lower()
+        theme = config.get_str('theme_name')
         if not theme:
             theme = 'light'
             config.set('theme_name', theme)
+        else:
+            theme = theme.lower()
         theme_name = self.packages[theme]
 
         # get the path to the theme file
@@ -372,10 +374,12 @@ class _Theme:
 
     def apply(self) -> None:
         logger.info('Applying theme')
-        theme = config.get_str('theme_name').lower()
+        theme = config.get_str('theme_name')
         if not theme:
             theme = 'light'
             config.set('theme_name', theme.capitalize())
+        else:
+            theme = theme.lower()
         transparent = config.get_bool('transparent')
 
         try:
