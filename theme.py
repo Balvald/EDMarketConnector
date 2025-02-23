@@ -240,9 +240,6 @@ class _Theme:
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
 
-    # WORKAROUND $elite-dangerous-version | 2025/02/11 : Because for some reason the theme is not applied to
-    # all widgets upon the second theme change we have to force it
-
     def load_colors(self) -> None:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
@@ -365,21 +362,17 @@ class _Theme:
              or .!preferencesdialog.!frame.!notebook
            * When you want to skip a widget in the main ui
              it needs to start with ".edmarketconnector.cnv.in.plugin_{number}"
-           * only needed if the widget is a tk.Checkbutton or tk.Radiobutton.
+           * only needed if the widget is a tk.Checkbutton or tk.Radiobutton!
+           * Any other widget already changes its theme with the ttk::setTheme or the tk_setPalette call.
+             which can be easily overridden by the plugin creator at any time.
         """
         logger.info(f'Registering skip for {widget}')
         self.force_skips.append(str(widget))
-        # not sure if anyone needs this or if they all just use the ttk.Checkbutton and ttk.Radiobutton
 
     def apply(self) -> None:
         logger.info('Applying theme')
         theme = config.get_str('theme')
         transparent = config.get_bool('transparent')
-
-        """if theme not in self.packages.values() or theme not in self.packages.keys():
-            # The theme that was used before must have been deleted
-            theme = 'light'  # self.THEME_DEFAULT
-            config.set('theme', 'light')"""
 
         try:
             self.root.tk.call('ttk::setTheme', self.packages[theme])
@@ -426,7 +419,8 @@ class _Theme:
                 window.title_bar.background_color = Colors.transparent
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
-                # TODO prevent loss of focus when hovering the title bar area  # fixed by transparent_move,
+                # TODO prevent loss of focus when hovering the title bar area
+                # # fixed by transparent_move,
                 # we just don't regain focus when hovering over the title bar,
                 # we have to hover over some visible widget first.
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,

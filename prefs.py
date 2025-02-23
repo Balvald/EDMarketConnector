@@ -748,17 +748,11 @@ class PreferencesDialog(tk.Toplevel):
                 columnspan=3, padx=self.PADX, pady=self.PADY, sticky=tk.W, row=cur_row
             )
 
-            all_themes = [t.capitalize() for t in theme.packages.values()]
-            if sys.platform != 'win32':
-                # Need to remove 'Transparent' on non-Windows platforms
-                # May want to rename Transparent to something more fitting as it does not need to be
-                # transparent.
-                all_themes.remove('Transparent')
             ttk.OptionMenu(
                 appearance_frame,
                 self.theme_name,
                 self.theme_name.get().capitalize(),
-                *all_themes,
+                *[t.capitalize() for t in theme.packages.values()],
                 command=self.themechanged
             ).grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
 
