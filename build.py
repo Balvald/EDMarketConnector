@@ -141,7 +141,7 @@ def build() -> None:
                 "sqlite3",
                 "util",
             ],
-            "includes": ["dataclasses", "shutil", "timeout_session", "zipfile"],
+            "includes": ["dataclasses", "shutil", "timeout_session", "zipfile", "myNotebook"],
             "excludes": [
                 "distutils",
                 "_markerlib",
