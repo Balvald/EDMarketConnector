@@ -133,7 +133,10 @@ class Translations:
 
     def contents(self, lang: str, plugin_path: pathlib.Path | None = None) -> dict[str, str]:
         """Load all the translations from a translation file."""
-        assert lang in self.available()
+        try:
+            assert lang in self.available()
+        except AssertionError:
+            lang = Translations.FALLBACK
         translations = {}
 
         h = self.file(lang, plugin_path)

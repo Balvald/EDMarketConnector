@@ -258,7 +258,7 @@ class Updater:
         newversion = self.check_appcast()
 
         if newversion and self.root:
-            status = self.root.nametowidget(f'.{appname.lower()}.status')
+            status = self.root.nametowidget(f'.{appname.lower()}.cnv.in.status')
             # LANG: Update Available Text
             status['text'] = tr.tl("{NEWVER} is available").format(NEWVER=newversion.title)
             self.root.update_idletasks()

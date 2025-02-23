@@ -68,8 +68,8 @@ def plugin_app(parent: tk.Tk) -> None:
     :return: See PLUGINS.md#display
     """
     this.parent = parent
-    this.system_link = parent.nametowidget(f".{appname.lower()}.system")
-    this.station_link = parent.nametowidget(f".{appname.lower()}.station")
+    this.system_link = parent.nametowidget(f".{appname.lower()}.cnv.in.system")
+    this.station_link = parent.nametowidget(f".{appname.lower()}.cnv.in.station")
 
 
 def plugin_stop() -> None:
