@@ -243,9 +243,11 @@ class _Theme:
     def load_colors(self) -> None:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
-
         # get the current theme
-        theme = config.get_str('theme')
+        theme = config.get_str('theme_name').lower()
+        if not theme:
+            theme = 'light'
+            config.set('theme_name', theme)
         theme_name = self.packages[theme]
 
         # get the path to the theme file
@@ -256,7 +258,6 @@ class _Theme:
             lines = f.readlines()
             foundstart = False
             for line in lines:
-                # logger.info(line)
                 if line.lstrip().startswith('array set colors'):
                     foundstart = True
                     continue
@@ -371,7 +372,10 @@ class _Theme:
 
     def apply(self) -> None:
         logger.info('Applying theme')
-        theme = config.get_str('theme')
+        theme = config.get_str('theme_name').lower()
+        if not theme:
+            theme = 'light'
+            config.set('theme_name', theme.capitalize())
         transparent = config.get_bool('transparent')
 
         try:

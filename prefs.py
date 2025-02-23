@@ -713,11 +713,9 @@ class PreferencesDialog(tk.Toplevel):
         self.lang = tk.StringVar(value=self.languages.get(config.get_str('language'), tr.tl('Default')))
         self.always_ontop = tk.BooleanVar(value=bool(config.get_int('always_ontop')))
         self.minimize_system_tray = tk.BooleanVar(value=config.get_bool('minimize_system_tray'))
-        self.theme = tk.StringVar(value=config.get_str('theme'))
+        self.theme = tk.IntVar(value=config.get_int('theme'))
         self.theme_colors = [config.get_str('dark_text'), config.get_str('dark_highlight')]
-        if self.theme.get() not in theme.packages.keys():
-            self.theme.set('light')
-        self.theme_name = tk.StringVar(value=theme.packages[str(self.theme.get())])
+        self.theme_name = tk.StringVar(value=list(theme.packages.values())[self.theme.get()])
         self.theme_prompts = [
             # LANG: Label for Settings > Appeareance > selection of 'normal' text colour
             tr.tl('Normal text'),		# Dark theme color setting
@@ -1186,8 +1184,10 @@ class PreferencesDialog(tk.Toplevel):
         if val not in [None, True, False]:
             logger.debug('Theme changed to %s', val)
             # assuming val is string name
-            self.theme.set(val.lower())
+            self.theme.set(list(theme.packages.values()).index(val.lower()))
             self.theme_name.set(val.capitalize())
+            config.set('theme', self.theme.get())
+            config.set('theme_name', self.theme_name.get())
 
         self.themevarchanged()
 
