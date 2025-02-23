@@ -715,6 +715,9 @@ class PreferencesDialog(tk.Toplevel):
         self.minimize_system_tray = tk.BooleanVar(value=config.get_bool('minimize_system_tray'))
         self.theme = tk.IntVar(value=config.get_int('theme'))
         self.theme_colors = [config.get_str('dark_text'), config.get_str('dark_highlight')]
+        if self.theme.get() >= len(list(theme.packages.values())):
+            self.theme.set(0)
+            config.set('theme', 0)
         self.theme_name = tk.StringVar(value=list(theme.packages.values())[self.theme.get()])
         self.theme_prompts = [
             # LANG: Label for Settings > Appeareance > selection of 'normal' text colour
