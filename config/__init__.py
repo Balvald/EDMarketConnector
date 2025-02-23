@@ -202,8 +202,10 @@ class AbstractConfig(abc.ABC):
     __auth_force_edmc_protocol = False  # Should we force edmc:// protocol ?
     __eddn_url = None  # Non-default EDDN URL
     __eddn_tracking_ui = False  # Show EDDN tracking UI ?
+    __skip_timecheck = False  # Skip checking event timestamps?
     __ttk_catalog = False  # Load Ttk catalog plugin ?
 
+    
     def __init__(self) -> None:
         self.home_path = pathlib.Path.home()
 
@@ -284,6 +286,19 @@ class AbstractConfig(abc.ABC):
         :return: bool - Should tracking UI be active?
         """
         return self.__eddn_tracking_ui
+
+    def set_skip_timecheck(self):
+        """Set the Event Timecheck bool."""
+        self.__skip_timecheck = True
+
+    @property
+    def skip_timecheck(self) -> bool:
+        """
+        Determine if the Event Timecheck bool is enabled.
+
+        :return: bool - Should EDMC check event timechecks?
+        """
+        return self.__skip_timecheck
 
     @property
     def app_dir(self) -> str:
