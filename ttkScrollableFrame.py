@@ -53,12 +53,6 @@ class ScrollableFrame(ttk.Frame):
         self.canvas.xview(*args)
         self.in_frame.update_idletasks()
 
-    def _theme(self, event) -> None:
-        # get the background color and handle the colour of the canvas
-        # Sometimes it does not want to change after theme.apply() so we encourage it a bit more.
-        color = ttk.Style().lookup('TLabel', 'background')
-        self.canvas.config(background=color)
-
     # constructor
     def __init__(self, parent, *args, **kw) -> None:
         ttk.Frame.__init__(self, parent, *args, **kw)
@@ -142,8 +136,3 @@ class ScrollableFrame(ttk.Frame):
         # enables scrolling while being over the canvas
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel_vert)
         self.canvas.bind_all("<Shift-MouseWheel>", self._on_mousewheel_hori)
-
-        # WORKAROUND $elite-version-number | 2025/02/11 : Forcing color change in canvas
-        # Always forcing the canvas to update its background color
-        # technically a workaround.
-        self.bind('<<ThemeChanged>>', self._theme)
