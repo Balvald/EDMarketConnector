@@ -125,7 +125,7 @@ class _Theme:
     packages = {
         'light': 'light',  # 'default' is the name of a builtin theme
         'dark': 'dark',
-        'transparent': 'transparent',
+        'eurocaps': 'eurocaps',
     }
     style: ttk.Style
     root: tk.Tk
@@ -255,12 +255,11 @@ class _Theme:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
         # get the current theme
-        theme = config.get_str('theme_name')
-        if not theme:
+        theme = config.get_str('theme_name').lower()
+        if theme not in self.packages.keys():
             theme = 'light'
             config.set('theme_name', theme)
-        else:
-            theme = theme.lower()
+            config.set('theme', 0)
         theme_name = self.packages[theme]
 
         # get the path to the theme file
@@ -355,7 +354,6 @@ class _Theme:
         self._force_theme_font(widget)
 
     def _force_theme_font(self, widget) -> None:
-        # wrong transparent thing....
         font = self.fonts[config.get_str('theme_name').lower()]
         if font.startswith('TkDefaultFont'):
             font = 'TkDefaultFont'
@@ -407,12 +405,11 @@ class _Theme:
 
     def apply(self) -> None:
         logger.info('Applying theme')
-        theme = config.get_str('theme_name')
-        if not theme:
+        theme = config.get_str('theme_name').lower()
+        if theme not in self.packages.keys():
             theme = 'light'
             config.set('theme_name', theme.capitalize())
-        else:
-            theme = theme.lower()
+            config.set('theme', 0)
         transparent = config.get_bool('transparent')
 
         try:

@@ -1,9 +1,9 @@
 package require Tk 8.6
 
-namespace eval ttk::theme::transparent {
+namespace eval ttk::theme::eurocaps {
 
     variable version 1.0
-    package provide ttk::theme::transparent $version
+    package provide ttk::theme::eurocaps $version
     variable colors
     array set colors {
         -fg         "#ff8000"
@@ -17,7 +17,7 @@ namespace eval ttk::theme::transparent {
     variable font_u [font create -family "Euro Caps" -size 10 -underline 1]
     variable flatborder [list -relief groove -bordercolor $colors(-fg) -darkcolor $colors(-bg) -lightcolor $colors(-bg)]
 
-    ttk::style theme create transparent -parent clam -settings {
+    ttk::style theme create eurocaps -parent clam -settings {
         ttk::style configure . \
             -background $colors(-bg) \
             -foreground $colors(-fg) \
