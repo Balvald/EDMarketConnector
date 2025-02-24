@@ -132,6 +132,7 @@ class _Theme:
     binds: dict[str, str] = {}
 
     colors: dict[str, str] = {}
+    fonts: dict[str, str] = {}
     prefsdialog_count: int = 0
     helpabout_count: int = 0
     force_skips: list = []
@@ -240,6 +241,16 @@ class _Theme:
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
 
+    def _load_font(self, theme_name, line) -> None:
+        if 'variable font [font create ' in line.lstrip():
+            self.fonts[theme_name] = line.strip().replace(
+                'variable font [font create ', '').replace('\n', '').replace(']', '')
+            logger.info(f'Loaded font: {self.fonts[theme_name]}')
+        elif line.strip() == 'variable font TkDefaultFont':
+            self.fonts[theme_name] = 'TkDefaultFont'
+        else:
+            logger.warning(f'Unknown font: {line}')
+
     def load_colors(self) -> None:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
@@ -260,16 +271,21 @@ class _Theme:
             lines = f.readlines()
             foundstart = False
             for line in lines:
+                if line.strip() == '}':
+                    continue
+                if line.lstrip().startswith('variable font'):
+                    self._load_font(theme_name, line)
+                    break
                 if line.lstrip().startswith('array set colors'):
                     foundstart = True
                     continue
-                if line.lstrip().startswith('}'):
-                    break
                 if foundstart:
                     pair = line.lstrip().replace('\n', '').replace('"', '').split()
+                    logger.info(f'Loaded color: {pair}')
                     self.colors[pair[0]] = pair[1]
 
         logger.info(f'Loaded colors: {self.colors}')
+        logger.info(f'Loaded fonts: {self.fonts}')
 
     def _get_all_widgets(self) -> list:
         all_widgets = []
@@ -326,6 +342,7 @@ class _Theme:
         widget.configure(indicatoron=True)
         widget.configure(selectcolor=self.style.lookup('TCheckbutton', 'background'))
         widget.configure(disabledforeground=self.colors['-disabledfg'])
+        self._force_theme_font(widget)
 
     def _force_theme_radiobutton(self, widget) -> None:
         widget.configure(background=self.style.lookup('TRadiobutton', 'background'))
@@ -335,6 +352,17 @@ class _Theme:
         widget.configure(indicatoron=True)
         widget.configure(selectcolor=self.style.lookup('TRadiobutton', 'background'))
         widget.configure(disabledforeground=self.colors['-disabledfg'])
+        self._force_theme_font(widget)
+
+    def _force_theme_font(self, widget) -> None:
+        # wrong transparent thing....
+        font = self.fonts[config.get_str('theme_name').lower()]
+        if font.startswith('TkDefaultFont'):
+            font = 'TkDefaultFont'
+        else:
+            font = font.split('-')
+            font = (font[1].split('family ')[1].rstrip().replace('"', ''), int(font[2].split(' ')[1]))
+        widget.configure(font=font)
 
     def _force_theme(self) -> None:
         logger.info('Forcing theme change')
@@ -342,6 +370,9 @@ class _Theme:
         all_skips = self._force_theme_get_skips()
 
         all_widgets = self._get_all_widgets()
+
+        force_font = (tk.Entry, tk.Text, tk.Label, tk.Menu, tk.Button, tk.Menubutton, tk.OptionMenu,
+                      tk.Spinbox, ttk.Spinbox, ttk.Entry, ttk.Combobox, tk.LabelFrame)
 
         for widget in all_widgets:
             try:
@@ -351,6 +382,8 @@ class _Theme:
                     self._force_theme_checkbutton(widget)
                 elif isinstance(widget, tk.Radiobutton):
                     self._force_theme_radiobutton(widget)
+                elif isinstance(widget, tuple(force_font)):
+                    self._force_theme_font(widget)
                 else:
                     continue
             except Exception as e:
