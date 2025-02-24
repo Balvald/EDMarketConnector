@@ -280,11 +280,7 @@ class _Theme:
                     continue
                 if foundstart:
                     pair = line.lstrip().replace('\n', '').replace('"', '').split()
-                    logger.info(f'Loaded color: {pair}')
                     self.colors[pair[0]] = pair[1]
-
-        logger.info(f'Loaded colors: {self.colors}')
-        logger.info(f'Loaded fonts: {self.fonts}')
 
     def _get_all_widgets(self) -> list:
         all_widgets = []
