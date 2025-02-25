@@ -539,12 +539,11 @@ class AppWindow:
             title_font = tk.font.Font(font=title_label['font'])
             title_font.configure(size=max(int(10.0*title_font_scale_factor), 1))
             title_label.configure(font=title_font)
-            title_icon = Image.open(config.respath_path / 'EDMarketConnector.ico')
-            title_icon = title_icon.resize((16, 16), Image.Resampling.BICUBIC)
-            title_icon = ImageTk.PhotoImage(image=title_icon)
-            title_icon_widget = ttk.Label(self.w, image=title_icon, name='title_icon')
-            title_icon_widget.image = title_icon
-            title_icon_widget.grid(row=0, column=0, sticky=tk.NW, padx=(self.PADX, 0), pady=(self.PADX, 0))
+            self.title_icon = Image.open(config.respath_path / 'EDMarketConnector.gif')
+            self.title_icon = ImageTk.PhotoImage(image=self.title_icon)
+            title_icon_widget = tk.Canvas(self.w, width=16, height=16, name='title_icon')
+            title_icon_widget.create_image(0, 0, anchor=tk.NW, image=self.title_icon)
+            title_icon_widget.grid(row=0, column=0, sticky=tk.NW, padx=(self.PADX+3, 0), pady=(self.PADX+3, 0))
 
         # Make sure that main window can be resized
         self.w.resizable(tk.TRUE, tk.TRUE)

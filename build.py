@@ -83,6 +83,7 @@ def generate_data_files(
                 "modules.json",
                 "ships.json",
                 f"{app_name}.ico",
+                f"{app_name}.gif",
                 f"resources/{appcmdname}.ico",
                 "EDMarketConnector - TRACE.bat",
                 "EDMarketConnector - localserver-auth.bat",
