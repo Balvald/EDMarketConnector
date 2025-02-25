@@ -21,6 +21,7 @@ import sys
 import threading
 import webbrowser
 from os import chdir, environ
+from PIL import Image, ImageTk
 from time import localtime, strftime, time
 from typing import TYPE_CHECKING, Any, Literal
 from constants import applongname, appname, protocolhandler_redirect
@@ -538,10 +539,11 @@ class AppWindow:
             title_font = tk.font.Font(font=title_label['font'])
             title_font.configure(size=max(int(10.0*title_font_scale_factor), 1))
             title_label.configure(font=title_font)
-            title_icon = tk.PhotoImage(file=config.respath_path / 'io.edcd.EDMarketConnector.png')
-            title_icon = title_icon.subsample(32, 32)
+            title_icon = Image.open(config.respath_path / 'EDMarketConnector.ico')
+            title_icon = title_icon.resize((16, 16), Image.Resampling.BICUBIC)
+            title_icon = ImageTk.PhotoImage(image=title_icon)
             title_icon_widget = ttk.Label(self.w, image=title_icon, name='title_icon')
-            title_icon_widget.photo = title_icon
+            title_icon_widget.image = title_icon
             title_icon_widget.grid(row=0, column=0, sticky=tk.NW, padx=(self.PADX, 0), pady=(self.PADX, 0))
 
         # Make sure that main window can be resized
