@@ -11,7 +11,7 @@ namespace eval ttk::theme::grom {
         -disabledfg "#848484"
         -selectfg   "#843000"
         -selectbg   "#ff6b00"
-        -highlight  "#ffb47f"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

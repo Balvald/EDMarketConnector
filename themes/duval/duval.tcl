@@ -11,7 +11,7 @@ namespace eval ttk::theme::duval {
         -disabledfg "#848484"
         -selectfg   "#004382"
         -selectbg   "#00befd"
-        -highlight  "#7edcfc"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

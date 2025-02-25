@@ -11,7 +11,7 @@ namespace eval ttk::theme::kaine {
         -disabledfg "#848484"
         -selectfg   "#2b8400"
         -selectbg   "#a6ff00"
-        -highlight  "#d2ff7f"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

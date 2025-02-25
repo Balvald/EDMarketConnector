@@ -533,6 +533,11 @@ class AppWindow:
         if sys.platform == 'win32':
             title_label = ttk.Label(self.w, text=applongname, name='title_label')
             title_label.grid(row=0, column=0, columnspan=3, sticky=tk.NW, padx=(2*self.PADX+16, 0), pady=(self.PADX, 0))
+            # rescaling the font in the top bar to be as close as possible as 10pt for the default UI scale
+            title_font_scale_factor = (1.0/float(theme.default_ui_scale)+0.25)*(100.0/float(theme.startup_ui_scale))
+            title_font = tk.font.Font(font=title_label['font'])
+            title_font.configure(size=max(int(10.0*title_font_scale_factor), 1))
+            title_label.configure(font=title_font)
             title_icon = tk.PhotoImage(file=config.respath_path / 'io.edcd.EDMarketConnector.png')
             title_icon = title_icon.subsample(32, 32)
             title_icon_widget = ttk.Label(self.w, image=title_icon, name='title_icon')

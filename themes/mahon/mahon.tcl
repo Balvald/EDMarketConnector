@@ -11,7 +11,7 @@ namespace eval ttk::theme::mahon {
         -disabledfg "#848484"
         -selectfg   "#001b00"
         -selectbg   "#009600"
-        -highlight  "#4b964b"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

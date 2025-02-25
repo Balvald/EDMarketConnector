@@ -11,7 +11,7 @@ namespace eval ttk::theme::antal {
         -disabledfg "#848484"
         -selectfg   "#848400"
         -selectbg   "#ffff00"
-        -highlight  "#ffff7f"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

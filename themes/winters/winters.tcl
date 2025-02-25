@@ -11,7 +11,7 @@ namespace eval ttk::theme::winters {
         -disabledfg "#848484"
         -selectfg   "#842b00"
         -selectbg   "#ffa600"
-        -highlight  "#ffd27f"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

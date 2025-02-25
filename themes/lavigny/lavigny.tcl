@@ -11,7 +11,7 @@ namespace eval ttk::theme::lavigny {
         -disabledfg "#848484"
         -selectfg   "#290081"
         -selectbg   "#d07efc"
-        -highlight  "#fcfcfc"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

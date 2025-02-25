@@ -11,7 +11,7 @@ namespace eval ttk::theme::delaine {
         -disabledfg "#848484"
         -selectfg   "#840000"
         -selectbg   "#ff0000"
-        -highlight  "#ff7f7f"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

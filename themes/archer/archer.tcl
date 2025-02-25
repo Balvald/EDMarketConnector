@@ -11,7 +11,7 @@ namespace eval ttk::theme::archer {
         -disabledfg "#848484"
         -selectfg   "#840084"
         -selectbg   "#ff00ff"
-        -highlight  "#ff84ff"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

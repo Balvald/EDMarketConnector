@@ -11,7 +11,7 @@ namespace eval ttk::theme::rui {
         -disabledfg "#848484"
         -selectfg   "#008304"
         -selectbg   "#00fe7f"
-        -highlight  "#7fffbf"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]

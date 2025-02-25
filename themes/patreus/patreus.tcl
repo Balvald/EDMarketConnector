@@ -11,7 +11,7 @@ namespace eval ttk::theme::patreus {
         -disabledfg "#848484"
         -selectfg   "#005959"
         -selectbg   "#20d4d4"
-        -highlight  "#89d3d3"
+        -highlight  "#ffffff"
     }
     variable font TkDefaultFont
     variable font_u [font create {*}[font configure TkDefaultFont] -underline 1]
