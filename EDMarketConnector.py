@@ -528,8 +528,8 @@ class AppWindow:
         ttk.Separator(self.theme_menubar).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
         self.theme_menubar.grid(row=0, columnspan=2, sticky=tk.NSEW)
 
-        # WORKAROUND $elite-version-number | 2025/02/11 : Manual Titlebar for Windows to properly support transparency
-        # The OS built-int titlebar can't be made transparent, so we just construct it ourselves.
+        # WORKAROUND  | 2025/02/25 : Manual Titlebar for Windows to properly support transparency
+        # The OS built-in titlebar can't be made transparent, so we just construct it ourselves.
         if sys.platform == 'win32':
             title_label = ttk.Label(self.w, text=applongname, name='title_label')
             title_label.grid(row=0, column=0, columnspan=3, sticky=tk.NW, padx=(2*self.PADX+16, 0), pady=(self.PADX, 0))
