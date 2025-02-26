@@ -119,9 +119,9 @@ elif sys.platform == 'linux':
 
 
 class _Theme:
-    # THEME_DEFAULT = 0
-    # THEME_DARK = 1
-    # THEME_TRANSPARENT = 2
+    THEME_DEFAULT = 0
+    THEME_DARK = 1
+    THEME_TRANSPARENT = 2
     packages = {
         'light': 'light',  # 'default' is the name of a builtin theme
         'dark': 'dark',

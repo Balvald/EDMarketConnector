@@ -2026,6 +2026,7 @@ sys.path: {sys.path}'''
 
     if args.reset_ui:
         config.set('theme', theme.THEME_DEFAULT)
+        config.set('theme_name', 'light')
         config.set('ui_transparency', 100)  # 100 is completely opaque
         config.delete('font', suppress=True)
         config.delete('font_size', suppress=True)
