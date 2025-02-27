@@ -119,6 +119,7 @@ elif sys.platform == 'linux':
 
 
 class _Theme:
+    # Kept if any plugin checks for theme.THEME_DEFAULT, theme.THEME_DARK or theme.THEME_TRANSPARENT
     THEME_DEFAULT = 0
     THEME_DARK = 1
     THEME_TRANSPARENT = 2
@@ -160,8 +161,9 @@ class _Theme:
             try:
                 self.root.tk.call('source', theme_file)
                 logger.info(f'loading theme package from "{theme_file}"')
-                if theme_file.parent.name not in self.packages.values():
-                    self.packages[theme_file.parent.name.lower()] = theme_file.parent.name.lower()
+                # Adding new themes to packages and store info about which font they use.
+                self.packages[theme_file.parent.name.lower()] = theme_file.parent.name.lower()
+                self.load_colors(theme_file.parent.name)
             except tk.TclError:
                 logger.exception(f'Failure loading theme package "{theme_file}"')
 
@@ -251,21 +253,25 @@ class _Theme:
         else:
             logger.warning(f'Unknown font: {line}')
 
-    def load_colors(self) -> None:
+    def load_colors(self, selected_theme: str = None) -> None:
         # load colors from the current theme which is a *.tcl file
         # and store them in the colors dict
         # get the current theme
-        theme = config.get_str('theme_name').lower()
-        if theme not in self.packages.keys():
-            theme = 'light'
-            config.set('theme_name', theme)
-            config.set('theme', 0)
-        theme_name = self.packages[theme]
+        if selected_theme is None:
+            theme = config.get_str('theme_name').lower()
+            if theme not in self.packages.keys():
+                theme = 'light'
+                config.set('theme_name', theme)
+                config.set('theme', 0)
+            theme_name = self.packages[theme]
+        else:
+            theme_name = selected_theme.lower()
+            theme = selected_theme.lower()
 
         # get the path to the theme file
         theme_file = config.internal_theme_dir_path / theme_name / (theme_name + '.tcl')
 
-        # load the theme file
+        # read colours and font from the theme file
         with open(theme_file, 'r') as f:
             lines = f.readlines()
             foundstart = False
@@ -392,7 +398,7 @@ class _Theme:
              or .!preferencesdialog.!frame.!notebook
            * When you want to skip a widget in the main ui
              it needs to start with ".edmarketconnector.cnv.in.plugin_{number}"
-           * only needed if the widget is a tk.Checkbutton or tk.Radiobutton!
+           * Only needed if the widget is a tk.Checkbutton or tk.Radiobutton!
            * Any other widget already changes its theme with the ttk::setTheme or the tk_setPalette call.
              which can be easily overridden by the plugin creator at any time.
         """
@@ -454,7 +460,7 @@ class _Theme:
                 window.title_bar.inactive_background_color = Colors.transparent
                 window.title_bar.button_hover_background_color = Colors.transparent
                 # TODO prevent loss of focus when hovering the title bar area
-                # # fixed by transparent_move,
+                # fixed by transparent_move,
                 # we just don't regain focus when hovering over the title bar,
                 # we have to hover over some visible widget first.
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,

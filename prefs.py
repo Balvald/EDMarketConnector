@@ -749,11 +749,20 @@ class PreferencesDialog(tk.Toplevel):
                 columnspan=3, padx=self.PADX, pady=self.PADY, sticky=tk.W, row=cur_row
             )
 
+            if sys.platform == 'win32':
+                eligible_themes = [t.capitalize() for t in theme.packages.values()]
+            else:
+                # Filter out themes that don't use the TkDefaultFont
+                eligible_themes = [t.capitalize() for t in theme.packages.values() if theme.fonts[t] == 'TkDefaultFont']
+                # Not sure if Linux can use other fonts since it doesn't seem to be able to use EUROCAPS.
+                # If Linux can use other fonts it might be interesting to split fonts from themes and
+                # add another option just for changing the used default font.
+
             ttk.OptionMenu(
                 appearance_frame,
                 self.theme_name,
                 self.theme_name.get().capitalize(),
-                *[t.capitalize() for t in theme.packages.values()],
+                *eligible_themes,
                 command=self.themechanged
             ).grid(column=1, columnspan=2, padx=0, pady=self.BOXY, sticky=tk.W, row=cur_row)
 
