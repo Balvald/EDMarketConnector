@@ -21,9 +21,6 @@ class ScrollableFrame(ttk.Frame):
       Scroll around via mousewheel, vertical even horizontal.
     * It supports resizing and vanishing the horizontral and vertical scrollbars if the window is bigger
       than what the canvas/interior frame requires for size.
-    * The scrollbars and the canvas itself use pack() instead of grid() because of some the scrollbars
-      vanishing when resizing the window and not being able to find an equivalent grid command to keep
-      always visible when the window is smaller than the canvas/interior frame.
     * Though within the canvas, the in_frame we can again use grid() to our hearts content.
     """
 
@@ -45,7 +42,7 @@ class ScrollableFrame(ttk.Frame):
         # canvas and interior frame are the same width at any point anyway
         if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
             return
-        self.canvas.xview_scroll(-1 * int(event.delta / 120), "units")
+        self.canvas.xview_scroll(-1 * int(event.delta / 120), 'units')
 
     def _set_xview(self, *args) -> None:
         if (self.winfo_toplevel().winfo_width()) > (self.canvas.winfo_reqwidth()+15):
@@ -56,6 +53,7 @@ class ScrollableFrame(ttk.Frame):
     # constructor
     def __init__(self, parent, *args, **kw) -> None:
         ttk.Frame.__init__(self, parent, *args, **kw)
+        self.parent = parent
 
         # creating scrollbar and canvas
         vscrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, name='vertscroll')
@@ -77,6 +75,10 @@ class ScrollableFrame(ttk.Frame):
                                 name='cnv')
         # pack over grid.
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # The scrollbars and the canvas itself use pack() instead of grid() because of the scrollbars
+        # vanishing when resizing the window and not being able to find an equivalent grid command to keep
+        # always visible when the window is smaller than the canvas/interior frame.
+
         # self.canvas.grid(row=0, column=0, sticky=tk.NSEW)
         # vscrollbar.lift(self.canvas)
 
@@ -104,9 +106,10 @@ class ScrollableFrame(ttk.Frame):
             # match scroll region to requested frame size
             in_frame_size = (self.in_frame.winfo_reqwidth(),
                              self.in_frame.winfo_reqheight())
-            self.canvas.config(scrollregion="0 0 %s %s" % in_frame_size)  # noqa: FS001
+            self.canvas.config(scrollregion='0 0 %s %s' % in_frame_size)  # noqa: FS001
             if self.in_frame.winfo_reqwidth() != self.canvas.winfo_width():
                 self.canvas.config(width=self.in_frame.winfo_reqwidth())
+            _configure_canvas(event)
 
         # adjust in_frame_id window size upon change in canvas
         def _configure_canvas(event) -> None:
@@ -131,8 +134,8 @@ class ScrollableFrame(ttk.Frame):
             else:
                 hscrollbar.pack_forget()
 
-        self.in_frame.bind('<Configure>', _configure_in_frame)
-        self.canvas.bind('<Configure>', _configure_canvas)
-        # enables scrolling while being over the canvas
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel_vert)
-        self.canvas.bind_all("<Shift-MouseWheel>", self._on_mousewheel_hori)
+        self.parent.bind('<Configure>', _configure_in_frame)
+        # self.canvas.bind('<Configure>', _configure_canvas)
+        # self.in_frame.bind('<Configure>', _configure_in_frame)
+        self.canvas.bind_all('<MouseWheel>', self._on_mousewheel_vert)
+        self.canvas.bind_all('<Shift-MouseWheel>', self._on_mousewheel_hori)
