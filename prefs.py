@@ -1002,8 +1002,8 @@ class PreferencesDialog(tk.Toplevel):
 
             for plugin in enabled_plugins:
                 label = ttk.Label(plugins_frame,
-                                 text=plugin.name if plugin.name == plugin.folder
-                                 else f'{plugin.folder} ({plugin.name})')
+                                  text=plugin.name if plugin.name == plugin.folder
+                                  else f'{plugin.folder} ({plugin.name})')
                 # if plugin.name == plugin.folder:
                 #     label = ttk.Label(plugins_frame, text=plugin.name)
                 # else:
@@ -1331,8 +1331,7 @@ class PreferencesDialog(tk.Toplevel):
         config.set('dark_highlight', self.theme_colors[1])
         if sys.platform == 'win32':
             config.set('transparent', self.transparent.get())
-        theme.apply(self.parent)
-        # theme.apply()
+        theme.apply()
 
         if self.plugdir.get() != config.get_str('plugin_dir'):
             config.set(

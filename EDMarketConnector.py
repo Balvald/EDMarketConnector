@@ -197,7 +197,6 @@ if __name__ == '__main__':  # noqa: C901
         action='store_true'
     )
 
-    
     parser.add_argument(
         '--ttk-catalog',
         help='Replace plugins with a catalog of Ttk widgets',
@@ -282,8 +281,7 @@ if __name__ == '__main__':  # noqa: C901
             # now need to do the edmc:// checks for auth callback
             if locked != JournalLockResult.LOCKED:
 
-                from ctypes import windll, WINFUNCTYPE
-
+                from ctypes import WINFUNCTYPE
                 from ctypes.wintypes import BOOL, HWND, LPARAM
                 import win32gui
                 import win32api
@@ -344,24 +342,8 @@ if __name__ == '__main__':  # noqa: C901
                                         win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
                                         win32gui.SetForegroundWindow(window_handle)
                             return False  # Indicate window found, so stop iterating
-
-                    # This conditional is exploded to make debugging slightly easier
-                    # if win32gui.GetClassName(window_handle) == 'TkTopLevel':
-                    #     if window_title(window_handle) == applongname:
-                    #         if GetProcessHandleFromHwnd(window_handle):
-                    #             # If GetProcessHandleFromHwnd succeeds then the app is already running as this user
-                    #             if len(sys.argv) > 1 and sys.argv[1].startswith(protocolhandler_redirect):
-                    #                 CoInitializeEx(0, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)
-                    #                 # Wait for it to be responsive to avoid ShellExecute recursing
-                    #                 win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
-                    #                 win32api.ShellExecute(0, None, sys.argv[1], None, None, win32con.SW_RESTORE)
-                    #             else:
-                    #                 ShowWindowAsync(window_handle, win32con.SW_RESTORE)
-                    #                 win32gui.SetForegroundWindow(window_handle)
-                    #     return False  # Indicate window found, so stop iterating
-                    # Indicate that EnumWindows() needs to continue iterating
                     return True  # Do not remove, else this function as a callback breaks
-                 
+
                 # This performs the edmc://auth check and forward
                 # EnumWindows() will iterate through all open windows, calling
                 # enumwindwsproc() on each.  When an invocation returns False it
@@ -691,104 +673,7 @@ class AppWindow:
             self.updater = update.Updater(tkroot=self.w)
             self.updater.check_for_updates()  # Sparkle / WinSparkle does this automatically for packaged apps
 
-        self.file_menu = self.view_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)
-        self.file_menu.add_command(command=lambda: stats.StatsDialog(self.w, self.status))
-        self.file_menu.add_command(command=self.save_raw)
-        self.file_menu.add_command(command=lambda: prefs.PreferencesDialog(self.w, self.postprefs))
-        self.file_menu.add_separator()
-        self.file_menu.add_command(command=self.onexit)
-        self.menubar.add_cascade(menu=self.file_menu)
-        self.edit_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)
-        self.edit_menu.add_command(accelerator='Ctrl+C', state=tk.DISABLED, command=self.copy)
-        self.menubar.add_cascade(menu=self.edit_menu)
-        self.help_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)  # type: ignore
-        self.help_menu.add_command(command=self.help_general)  # Documentation
-        self.help_menu.add_command(command=self.help_troubleshooting)  # Troubleshooting
-        self.help_menu.add_command(command=self.help_report_a_bug)  # Report A Bug
-        self.help_menu.add_command(command=self.help_privacy)  # Privacy Policy
-        self.help_menu.add_command(command=self.help_releases)  # Release Notes
-        self.help_menu.add_command(command=lambda: self.updater.check_for_updates())  # Check for Updates...
-        # About E:D Market Connector
-        self.help_menu.add_command(command=lambda: not self.HelpAbout.showing and self.HelpAbout(self.w))
-        logfile_loc = pathlib.Path(config.app_dir_path / 'logs')
-        self.help_menu.add_command(command=lambda: prefs.open_folder(logfile_loc))  # Open Log Folder
-        self.help_menu.add_command(command=lambda: prefs.help_open_system_profiler(self))  # Open System Profiler
-
-        self.menubar.add_cascade(menu=self.help_menu)
-        if sys.platform == 'win32':
-            # Must be added after at least one "real" menu entry
-            self.always_ontop = tk.BooleanVar(value=bool(config.get_int('always_ontop')))
-            self.system_menu = tk.Menu(self.menubar, name='system', tearoff=tk.FALSE)
-            self.system_menu.add_separator()
-            # LANG: Appearance - Label for checkbox to select if application always on top
-            self.system_menu.add_checkbutton(label=tr.tl('Always on top'),
-                                             variable=self.always_ontop,
-                                             command=self.ontop_changed)  # Appearance setting
-            self.menubar.add_cascade(menu=self.system_menu)
-        self.w.bind('<Control-c>', self.copy)
-
-        # Bind to the Default theme minimise button
-        self.w.bind("<Unmap>", self.default_iconify)
-
-        self.w.protocol("WM_DELETE_WINDOW", self.onexit)
-        theme.register(self.menubar)  # menus and children aren't automatically registered
-        theme.register(self.file_menu)
-        theme.register(self.edit_menu)
-        theme.register(self.help_menu)
-
-        # Alternate title bar and menu for dark theme
-        self.theme_menubar = tk.Frame(frame, name="alternate_menubar")
-        self.theme_menubar.columnconfigure(2, weight=1)
-        theme_titlebar = tk.Label(
-            self.theme_menubar,
-            name="alternate_titlebar",
-            text=applongname,
-            image=self.theme_icon, cursor='fleur',
-            anchor=tk.W, compound=tk.LEFT
-        )
-        theme_titlebar.grid(columnspan=3, padx=2, sticky=tk.NSEW)
-        self.drag_offset: tuple[int | None, int | None] = (None, None)
-        theme_titlebar.bind('<Button-1>', self.drag_start)
-        theme_titlebar.bind('<B1-Motion>', self.drag_continue)
-        theme_titlebar.bind('<ButtonRelease-1>', self.drag_end)
-        theme_minimize = tk.Label(self.theme_menubar, image=self.theme_minimize)
-        theme_minimize.grid(row=0, column=3, padx=2)
-        theme.button_bind(theme_minimize, self.oniconify, image=self.theme_minimize)
-        theme_close = tk.Label(self.theme_menubar, image=self.theme_close)
-        theme_close.grid(row=0, column=4, padx=2)
-        theme.button_bind(theme_close, self.onexit, image=self.theme_close)
-        self.theme_file_menu = tk.Label(self.theme_menubar, anchor=tk.W)
-        self.theme_file_menu.grid(row=1, column=0, padx=self.PADX, sticky=tk.W)
-        theme.button_bind(self.theme_file_menu,
-                          lambda e: self.file_menu.tk_popup(e.widget.winfo_rootx(),
-                                                            e.widget.winfo_rooty()
-                                                            + e.widget.winfo_height()))
-        self.theme_edit_menu = tk.Label(self.theme_menubar, anchor=tk.W)
-        self.theme_edit_menu.grid(row=1, column=1, sticky=tk.W)
-        theme.button_bind(self.theme_edit_menu,
-                          lambda e: self.edit_menu.tk_popup(e.widget.winfo_rootx(),
-                                                            e.widget.winfo_rooty()
-                                                            + e.widget.winfo_height()))
-        self.theme_help_menu = tk.Label(self.theme_menubar, anchor=tk.W)
-        self.theme_help_menu.grid(row=1, column=2, sticky=tk.W)
-        theme.button_bind(self.theme_help_menu,
-                          lambda e: self.help_menu.tk_popup(e.widget.winfo_rootx(),
-                                                            e.widget.winfo_rooty()
-                                                            + e.widget.winfo_height()))
-        tk.Frame(self.theme_menubar, highlightthickness=1).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
-        theme.register(self.theme_minimize)  # images aren't automatically registered
-        theme.register(self.theme_close)
-        self.blank_menubar = tk.Frame(frame, name="blank_menubar")
-        tk.Label(self.blank_menubar).grid()
-        tk.Label(self.blank_menubar).grid()
-        tk.Frame(self.blank_menubar, height=2).grid()
-        theme.register_alternate((self.menubar, self.theme_menubar, self.blank_menubar),
-                                 {'row': 0, 'columnspan': 2, 'sticky': tk.NSEW})
-        self.w.resizable(tk.TRUE, tk.FALSE)
-
-        # We should not turn off the ability to resize the window!
-        # self.w.resizable(tk.FALSE, tk.FALSE)
-        # theme.apply()
+        theme.apply()
 
         # update geometry
         if config.get_str('geometry'):
@@ -839,8 +724,7 @@ class AppWindow:
         self.toggle_suit_row(visible=False)
         if args.start_min:
             logger.warning("Trying to start minimized")
-            self.oniconify() if root.overrideredirect() else self.w.wm_iconify()
-            # self.w.wm_iconify()
+            self.w.wm_iconify()
 
     def update_suit_text(self) -> None:
         """Update the suit text for current type and loadout."""

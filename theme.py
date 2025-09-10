@@ -17,6 +17,7 @@ from tkinter import ttk
 from typing import Callable
 from config import config
 from EDMCLogging import get_main_logger
+from ttkHyperlinkLabel import HyperlinkLabel
 
 logger = get_main_logger()
 
@@ -141,6 +142,10 @@ class _Theme:
     def __init__(self) -> None:
         self.active: int | None = None  # Starts out with no theme
         self.active_transparent: bool | None = None
+        self.widgets: dict[tk.Widget | tk.BitmapImage, set] = {}
+        self.widgets_pair: list = []
+        self.defaults: dict = {}
+        self.current: dict = {}
         self.minwidth: int | None = None
         self.default_ui_scale: float | None = None  # None == not yet known
         self.startup_ui_scale: int | None = None
@@ -281,17 +286,6 @@ class _Theme:
             except tk.TclError:
                 logger.exception(f'Failure loading theme package "{theme_file}"')
 
-    def register(self, widget: tk.Widget | tk.BitmapImage) -> None:
-        assert isinstance(widget, (tk.BitmapImage, tk.Widget)), widget
-        warnings.warn('theme.register() is no longer necessary as theme attributes are set on tk level',
-                      DeprecationWarning, stacklevel=2)
-
-    def register_alternate(self, pair: tuple, gridopts: dict) -> None:
-        ...  # does any plugin even use this?
-
-    def button_bind(self, widget: tk.Widget, command: Callable) -> None:
-        ...  # does any plugin even use this?
-
     def update(self, widget: tk.Widget) -> None:
         """
         Apply current theme to a widget and its children.
@@ -382,6 +376,8 @@ class _Theme:
                 if 'bg' not in attribs:
                     widget['background'] = self.current['background']
                     widget['highlightbackground'] = self.current['disabledforeground']
+        except Exception as e:
+            logger.debug(f'Error updating theme for {widget} with type {type(widget)}: {e}')
 
     def to_hex(self, hex_color) -> str:
         hex_color = str(hex_color)
