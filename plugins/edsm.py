@@ -18,6 +18,7 @@ referenced in this file (or only in any other core plugin), and if so...
     `build.py` TO ENSURE THE FILES ARE ACTUALLY PRESENT
     IN AN END-USER INSTALLATION ON WINDOWS.
 """
+# pylint: disable=import-error
 from __future__ import annotations
 
 import json
@@ -40,6 +41,9 @@ from EDMCLogging import get_main_logger
 from myNotebook import EntryMenu
 from ttkHyperlinkLabel import HyperlinkLabel
 from l10n import translations as tr
+from plugins.common_coreutils import (api_keys_label_common, PADX, PADY, BUTTONX, SEPY, BOXY, STATION_UNDOCKED,
+                                      show_pwd_var_common, station_link_common, this_format_common,
+                                      cmdr_data_initial_common)
 
 
 # TODO:
@@ -118,9 +122,7 @@ class This:
 
 
 this = This()
-show_password_var = tk.BooleanVar()
 
-STATION_UNDOCKED: str = '×'  # "Station" name to display when not docked = U+00D7
 __cleanup = str.maketrans({' ': None, '\n': None})
 IMG_KNOWN_B64 = """
 R0lGODlhEAAQAMIEAFWjVVWkVWS/ZGfFZ////////////////yH5BAEKAAQALAAAAAAQABAAAAMvSLrc/lAFIUIkYOgNXt5g14Dk0AQlaC1CuglM6w7wgs7r
@@ -269,14 +271,6 @@ def plugin_stop() -> None:
     logger.debug('Done.')
 
 
-def toggle_password_visibility():
-    """Toggle if the API Key is visible or not."""
-    if show_password_var.get():
-        this.apikey.config(show="")  # type: ignore
-    else:
-        this.apikey.config(show="*")  # type: ignore
-
-
 def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> ttk.Frame:
     """
     Plugin preferences setup hook.
@@ -289,11 +283,12 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> ttk.F
     :param is_beta: Whether game beta was detected.
     :return: An instance of `myNotebook.Frame`.
     """
-    PADX = 10  # noqa: N806
-    BUTTONX = 12  # noqa: N806
-    PADY = 1  # noqa: N806
-    BOXY = 2  # noqa: N806
-    SEPY = 10  # noqa: N806
+
+    # PADX = 10  # noqa: N806
+    # BUTTONX = 12  # noqa: N806
+    # PADY = 1  # noqa: N806
+    # BOXY = 2  # noqa: N806
+    # SEPY = 10  # noqa: N806
 
     frame = ttk.Frame(parent)
     frame.columnconfigure(1, weight=1)
@@ -347,23 +342,13 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> ttk.F
 
     cur_row += 1
     # LANG: EDSM API key label
-    this.apikey_label = ttk.Label(frame, text=tr.tl('API Key'))
-    this.apikey_label.grid(row=cur_row, padx=PADX, pady=PADY, sticky=tk.W)
-    this.apikey = EntryMenu(frame, show="*", width=50)
-    this.apikey.grid(row=cur_row, column=1, padx=PADX, pady=BOXY, sticky=tk.EW)
-    cur_row += 1
 
+    api_keys_label_common(this, cur_row, frame)
+
+    cur_row += 1
     prefs_cmdr_changed(cmdr, is_beta)
 
-    show_password_var.set(False)  # Password is initially masked
-
-    show_password_checkbox = ttk.Checkbutton(
-        frame,
-        text=tr.tl('Show API Key'),  # LANG: Text EDSM Show API Key
-        variable=show_password_var,
-        command=toggle_password_visibility
-    )
-    show_password_checkbox.grid(row=cur_row, columnspan=2, padx=BUTTONX, pady=PADY, sticky=tk.W)
+    show_pwd_var_common(frame, cur_row, this)
 
     return frame
 
@@ -542,11 +527,7 @@ def journal_entry(  # noqa: C901, CCR001
 
     this.game_version = state['GameVersion']
     this.game_build = state['GameBuild']
-    this.system_address = state['SystemAddress']
-    this.system_name = state['SystemName']
-    this.system_population = state['SystemPopulation']
-    this.station_name = state['StationName']
-    this.station_marketid = state['MarketID']
+    this_format_common(this, state)
 
     entry = new_entry
 
@@ -656,7 +637,7 @@ Queueing: {entry!r}'''
 
 
 # Update system data
-def cmdr_data(data: CAPIData, is_beta: bool) -> str | None:  # noqa: CCR001
+def cmdr_data(data: CAPIData, is_beta: bool) -> str | None:
     """
     Process new CAPI data.
 
@@ -666,14 +647,7 @@ def cmdr_data(data: CAPIData, is_beta: bool) -> str | None:  # noqa: CCR001
     """
     system = data['lastSystem']['name']
 
-    # Always store initially, even if we're not the *current* system provider.
-    if not this.station_marketid and data['commander']['docked']:
-        this.station_marketid = data['lastStarport']['id']
-    # Only trust CAPI if these aren't yet set
-    if not this.system_name:
-        this.system_name = data['lastSystem']['name']
-    if not this.station_name and data['commander']['docked']:
-        this.station_name = data['lastStarport']['name']
+    cmdr_data_initial_common(this, data)
 
     # TODO: Fire off the EDSM API call to trigger the callback for the icons
 
@@ -685,13 +659,7 @@ def cmdr_data(data: CAPIData, is_beta: bool) -> str | None:  # noqa: CCR001
             this.system_link.update_idletasks()
     if config.get_str('station_provider') == 'EDSM':
         if this.station_link:
-            if data['commander']['docked'] or this.on_foot and this.station_name:
-                this.station_link['text'] = this.station_name
-            elif data['lastStarport']['name'] and data['lastStarport']['name'] != "":
-                this.station_link['text'] = STATION_UNDOCKED
-            else:
-                this.station_link['text'] = ''
-
+            station_link_common(data, this)
             # Do *NOT* set 'url' here, as it's set to a function that will call
             # through correctly.  We don't want a static string.
             this.station_link.update_idletasks()

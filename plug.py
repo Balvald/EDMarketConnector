@@ -112,20 +112,16 @@ class Plugin:
                 appitem = plugin_app(parent)
                 if appitem is None:
                     return None
-
                 if isinstance(appitem, tuple):
                     if (
                         len(appitem) != 2
                         or not isinstance(appitem[0], tk.Widget)
                         or not isinstance(appitem[1], tk.Widget)
                     ):
-                        raise AssertionError
-
+                        raise TypeError("Expected a tuple of two tk.Widget instances from plugin_app")
                 elif not isinstance(appitem, tk.Widget):
-                    raise AssertionError
-
+                    raise TypeError("Expected a tk.Widget or tuple of two tk.Widgets from plugin_app")
                 return appitem
-
             except Exception:
                 logger.exception(f'Failed for Plugin "{self.name}"')
 
@@ -147,7 +143,7 @@ class Plugin:
                 frame = plugin_prefs(parent, cmdr, is_beta)
                 if isinstance(frame, ttk.Frame):
                     return frame
-                raise AssertionError
+                raise TypeError(f'Expected nb.Frame from plugin_prefs, got {type(frame).__name__}')
             except Exception:
                 logger.exception(f'Failed for Plugin "{self.name}"')
         return None
@@ -260,7 +256,8 @@ def invoke(
     for plugin in PLUGINS:
         if plugin.name == fallback:
             plugin_func = plugin._get_func(fn_name)
-            assert plugin_func, plugin.name  # fallback plugin should provide the function
+            if not plugin_func:
+                raise ValueError(f"Fallback plugin '{plugin.name}' does not provide the function '{fn_name}'")
             return plugin_func(*args)
 
     return None
@@ -425,11 +422,7 @@ def notify_capidata(data: companion.CAPIData, is_beta: bool) -> str | None:
     error = None
     for plugin in PLUGINS:
         # TODO: Handle it being Legacy data
-        if data.source_host == companion.SERVER_LEGACY:
-            cmdr_data = plugin._get_func('cmdr_data_legacy')
-
-        else:
-            cmdr_data = plugin._get_func('cmdr_data')
+        cmdr_data = plugin._get_func('cmdr_data_legacy' if data.source_host == companion.SERVER_LEGACY else 'cmdr_data')
 
         if cmdr_data:
             try:

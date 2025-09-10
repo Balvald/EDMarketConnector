@@ -52,7 +52,7 @@ appcmdname = 'EDMC'
 # <https://semver.org/#semantic-versioning-specification-semver>
 # Major.Minor.Patch(-prerelease)(+buildmetadata)
 # NB: Do *not* import this, use the functions appversion() and appversion_nobuild()
-_static_appversion = '5.12.5'
+_static_appversion = '5.13.1'
 _cached_version: semantic_version.Version | None = None
 copyright = '© 2015-2019 Jonathan Harris, 2020-2024 EDCD'
 
@@ -203,6 +203,7 @@ class AbstractConfig(abc.ABC):
     __eddn_url = None  # Non-default EDDN URL
     __eddn_tracking_ui = False  # Show EDDN tracking UI ?
     __skip_timecheck = False  # Skip checking event timestamps?
+    
     __ttk_catalog = False  # Load Ttk catalog plugin ?
 
     

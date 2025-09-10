@@ -70,6 +70,7 @@ from config import appversion, appversion_nobuild, config, copyright
 from EDMCLogging import edmclogger, logger, logging
 from journal_lock import JournalLock, JournalLockResult
 from update import check_for_fdev_updates
+from common_utils import log_locale, SERVER_RETRY
 
 if __name__ == '__main__':  # noqa: C901
     # Command-line arguments
@@ -196,6 +197,7 @@ if __name__ == '__main__':  # noqa: C901
         action='store_true'
     )
 
+    
     parser.add_argument(
         '--ttk-catalog',
         help='Replace plugins with a catalog of Ttk widgets',
@@ -279,25 +281,38 @@ if __name__ == '__main__':  # noqa: C901
             # If *this* instance hasn't locked, then another already has and we
             # now need to do the edmc:// checks for auth callback
             if locked != JournalLockResult.LOCKED:
+
                 from ctypes import windll, WINFUNCTYPE
+
                 from ctypes.wintypes import BOOL, HWND, LPARAM
                 import win32gui
                 import win32api
                 import win32con
+                import win32process
+                import pythoncom
 
-                GetProcessHandleFromHwnd = windll.oleacc.GetProcessHandleFromHwnd  # noqa: N806
-                ShowWindowAsync = windll.user32.ShowWindowAsync  # noqa: N806
+                def get_process_handle_from_hwnd(hwnd):
+                    try:
+                        # Get thread and process IDs
+                        _, process_id = win32process.GetWindowThreadProcessId(hwnd)
+                    # Get the process handle
+                        return win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, process_id)
+                    except Exception:
+                        return None
 
-                COINIT_MULTITHREADED = 0  # noqa: N806,F841
-                COINIT_APARTMENTTHREADED = 0x2  # noqa: N806
-                COINIT_DISABLE_OLE1DDE = 0x4  # noqa: N806
-                CoInitializeEx = windll.ole32.CoInitializeEx  # noqa: N806
+                def window_title(hwnd: int) -> str | None:
+                    try:
+                        return win32gui.GetWindowText(hwnd) if hwnd else None
+                    except Exception:
+                        return None
 
-                def window_title(h: int) -> str | None:
-                    if h:
-                        return win32gui.GetWindowText(h)
-                    return None
+                def get_window_class(hwnd: int) -> str:
+                    try:
+                        return win32gui.GetClassName(hwnd)
+                    except Exception:
+                        return ""
 
+                # We still need WINFUNCTYPE for the callback as win32gui doesn't provide an alternative
                 @WINFUNCTYPE(BOOL, HWND, LPARAM)
                 def enumwindowsproc(window_handle, l_param):
                     """
@@ -314,26 +329,39 @@ if __name__ == '__main__':  # noqa: C901
                     :param l_param: The second parameter to the EnumWindows() call.
                     :return: False if we found a match, else True to continue iteration
                     """
+
+                    if window_class := get_window_class(window_handle):
+                        if window_class == 'TkTopLevel':
+                            if window_title(window_handle) == applongname:
+                                if get_process_handle_from_hwnd(window_handle):
+                                    # If GetProcessHandleFromHwnd succeeds then the app is already running as this user
+                                    if len(sys.argv) > 1 and sys.argv[1].startswith(protocolhandler_redirect):
+                                        pythoncom.CoInitializeEx(0)
+                                        # Wait for it to be responsive to avoid ShellExecute recursing
+                                        win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
+                                        win32api.ShellExecute(0, None, sys.argv[1], None, None, win32con.SW_RESTORE)
+                                    else:
+                                        win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
+                                        win32gui.SetForegroundWindow(window_handle)
+                            return False  # Indicate window found, so stop iterating
+
                     # This conditional is exploded to make debugging slightly easier
-                    if win32gui.GetClassName(window_handle) == 'TkTopLevel':
-                        if window_title(window_handle) == applongname:
-                            if GetProcessHandleFromHwnd(window_handle):
-                                # If GetProcessHandleFromHwnd succeeds then the app is already running as this user
-                                if len(sys.argv) > 1 and sys.argv[1].startswith(protocolhandler_redirect):
-                                    CoInitializeEx(0, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)
-                                    # Wait for it to be responsive to avoid ShellExecute recursing
-                                    win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
-                                    win32api.ShellExecute(0, None, sys.argv[1], None, None, win32con.SW_RESTORE)
-
-                                else:
-                                    ShowWindowAsync(window_handle, win32con.SW_RESTORE)
-                                    win32gui.SetForegroundWindow(window_handle)
-
-                        return False  # Indicate window found, so stop iterating
-
+                    # if win32gui.GetClassName(window_handle) == 'TkTopLevel':
+                    #     if window_title(window_handle) == applongname:
+                    #         if GetProcessHandleFromHwnd(window_handle):
+                    #             # If GetProcessHandleFromHwnd succeeds then the app is already running as this user
+                    #             if len(sys.argv) > 1 and sys.argv[1].startswith(protocolhandler_redirect):
+                    #                 CoInitializeEx(0, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)
+                    #                 # Wait for it to be responsive to avoid ShellExecute recursing
+                    #                 win32gui.ShowWindow(window_handle, win32con.SW_RESTORE)
+                    #                 win32api.ShellExecute(0, None, sys.argv[1], None, None, win32con.SW_RESTORE)
+                    #             else:
+                    #                 ShowWindowAsync(window_handle, win32con.SW_RESTORE)
+                    #                 win32gui.SetForegroundWindow(window_handle)
+                    #     return False  # Indicate window found, so stop iterating
                     # Indicate that EnumWindows() needs to continue iterating
                     return True  # Do not remove, else this function as a callback breaks
-
+                 
                 # This performs the edmc://auth check and forward
                 # EnumWindows() will iterate through all open windows, calling
                 # enumwindwsproc() on each.  When an invocation returns False it
@@ -425,8 +453,6 @@ from monitor import monitor
 from theme import theme
 from ttkHyperlinkLabel import HyperlinkLabel, SHIPYARD_HTML_TEMPLATE
 
-SERVER_RETRY = 5  # retry pause for Companion servers [s]
-
 
 class AppWindow:
     """Define the main application window."""
@@ -459,13 +485,20 @@ class AppWindow:
         self.prefsdialog_window = None
         self.helpabout_window = None
 
-        if sys.platform == 'win32':
+        if sys.platform == 'win32' and not bool(config.get_int('no_systray')):
             from simplesystray import SysTrayIcon
 
             def open_window(systray: 'SysTrayIcon', *args) -> None:
                 self.w.deiconify()
 
-            menu_options = (("Open", None, open_window),)
+            logfile_loc = pathlib.Path(config.app_dir_path / 'logs')
+            menu_options = (
+                ("Open", None, open_window),
+                ("Report a Bug", None, self.help_report_a_bug),
+                ("About EDMC", None, lambda: not self.HelpAbout.showing and self.HelpAbout(self.w)),
+                ("Open Log Folder", None, lambda: prefs.open_folder(logfile_loc)),
+                ("Open System Profiler", None, lambda: prefs.help_open_system_profiler(self)),
+            )
             # Method associated with on_quit is called whenever the systray is closing
             self.systray = SysTrayIcon("EDMarketConnector.ico", applongname, menu_options, on_quit=self.exit_tray)
             self.systray.start()
@@ -658,9 +691,104 @@ class AppWindow:
             self.updater = update.Updater(tkroot=self.w)
             self.updater.check_for_updates()  # Sparkle / WinSparkle does this automatically for packaged apps
 
+        self.file_menu = self.view_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)
+        self.file_menu.add_command(command=lambda: stats.StatsDialog(self.w, self.status))
+        self.file_menu.add_command(command=self.save_raw)
+        self.file_menu.add_command(command=lambda: prefs.PreferencesDialog(self.w, self.postprefs))
+        self.file_menu.add_separator()
+        self.file_menu.add_command(command=self.onexit)
+        self.menubar.add_cascade(menu=self.file_menu)
+        self.edit_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)
+        self.edit_menu.add_command(accelerator='Ctrl+C', state=tk.DISABLED, command=self.copy)
+        self.menubar.add_cascade(menu=self.edit_menu)
+        self.help_menu = tk.Menu(self.menubar, tearoff=tk.FALSE)  # type: ignore
+        self.help_menu.add_command(command=self.help_general)  # Documentation
+        self.help_menu.add_command(command=self.help_troubleshooting)  # Troubleshooting
+        self.help_menu.add_command(command=self.help_report_a_bug)  # Report A Bug
+        self.help_menu.add_command(command=self.help_privacy)  # Privacy Policy
+        self.help_menu.add_command(command=self.help_releases)  # Release Notes
+        self.help_menu.add_command(command=lambda: self.updater.check_for_updates())  # Check for Updates...
+        # About E:D Market Connector
+        self.help_menu.add_command(command=lambda: not self.HelpAbout.showing and self.HelpAbout(self.w))
+        logfile_loc = pathlib.Path(config.app_dir_path / 'logs')
+        self.help_menu.add_command(command=lambda: prefs.open_folder(logfile_loc))  # Open Log Folder
+        self.help_menu.add_command(command=lambda: prefs.help_open_system_profiler(self))  # Open System Profiler
+
+        self.menubar.add_cascade(menu=self.help_menu)
+        if sys.platform == 'win32':
+            # Must be added after at least one "real" menu entry
+            self.always_ontop = tk.BooleanVar(value=bool(config.get_int('always_ontop')))
+            self.system_menu = tk.Menu(self.menubar, name='system', tearoff=tk.FALSE)
+            self.system_menu.add_separator()
+            # LANG: Appearance - Label for checkbox to select if application always on top
+            self.system_menu.add_checkbutton(label=tr.tl('Always on top'),
+                                             variable=self.always_ontop,
+                                             command=self.ontop_changed)  # Appearance setting
+            self.menubar.add_cascade(menu=self.system_menu)
+        self.w.bind('<Control-c>', self.copy)
+
+        # Bind to the Default theme minimise button
+        self.w.bind("<Unmap>", self.default_iconify)
+
+        self.w.protocol("WM_DELETE_WINDOW", self.onexit)
+        theme.register(self.menubar)  # menus and children aren't automatically registered
+        theme.register(self.file_menu)
+        theme.register(self.edit_menu)
+        theme.register(self.help_menu)
+
+        # Alternate title bar and menu for dark theme
+        self.theme_menubar = tk.Frame(frame, name="alternate_menubar")
+        self.theme_menubar.columnconfigure(2, weight=1)
+        theme_titlebar = tk.Label(
+            self.theme_menubar,
+            name="alternate_titlebar",
+            text=applongname,
+            image=self.theme_icon, cursor='fleur',
+            anchor=tk.W, compound=tk.LEFT
+        )
+        theme_titlebar.grid(columnspan=3, padx=2, sticky=tk.NSEW)
+        self.drag_offset: tuple[int | None, int | None] = (None, None)
+        theme_titlebar.bind('<Button-1>', self.drag_start)
+        theme_titlebar.bind('<B1-Motion>', self.drag_continue)
+        theme_titlebar.bind('<ButtonRelease-1>', self.drag_end)
+        theme_minimize = tk.Label(self.theme_menubar, image=self.theme_minimize)
+        theme_minimize.grid(row=0, column=3, padx=2)
+        theme.button_bind(theme_minimize, self.oniconify, image=self.theme_minimize)
+        theme_close = tk.Label(self.theme_menubar, image=self.theme_close)
+        theme_close.grid(row=0, column=4, padx=2)
+        theme.button_bind(theme_close, self.onexit, image=self.theme_close)
+        self.theme_file_menu = tk.Label(self.theme_menubar, anchor=tk.W)
+        self.theme_file_menu.grid(row=1, column=0, padx=self.PADX, sticky=tk.W)
+        theme.button_bind(self.theme_file_menu,
+                          lambda e: self.file_menu.tk_popup(e.widget.winfo_rootx(),
+                                                            e.widget.winfo_rooty()
+                                                            + e.widget.winfo_height()))
+        self.theme_edit_menu = tk.Label(self.theme_menubar, anchor=tk.W)
+        self.theme_edit_menu.grid(row=1, column=1, sticky=tk.W)
+        theme.button_bind(self.theme_edit_menu,
+                          lambda e: self.edit_menu.tk_popup(e.widget.winfo_rootx(),
+                                                            e.widget.winfo_rooty()
+                                                            + e.widget.winfo_height()))
+        self.theme_help_menu = tk.Label(self.theme_menubar, anchor=tk.W)
+        self.theme_help_menu.grid(row=1, column=2, sticky=tk.W)
+        theme.button_bind(self.theme_help_menu,
+                          lambda e: self.help_menu.tk_popup(e.widget.winfo_rootx(),
+                                                            e.widget.winfo_rooty()
+                                                            + e.widget.winfo_height()))
+        tk.Frame(self.theme_menubar, highlightthickness=1).grid(columnspan=5, padx=self.PADX, sticky=tk.EW)
+        theme.register(self.theme_minimize)  # images aren't automatically registered
+        theme.register(self.theme_close)
+        self.blank_menubar = tk.Frame(frame, name="blank_menubar")
+        tk.Label(self.blank_menubar).grid()
+        tk.Label(self.blank_menubar).grid()
+        tk.Frame(self.blank_menubar, height=2).grid()
+        theme.register_alternate((self.menubar, self.theme_menubar, self.blank_menubar),
+                                 {'row': 0, 'columnspan': 2, 'sticky': tk.NSEW})
+        self.w.resizable(tk.TRUE, tk.FALSE)
+
         # We should not turn off the ability to resize the window!
         # self.w.resizable(tk.FALSE, tk.FALSE)
-        theme.apply()
+        # theme.apply()
 
         # update geometry
         if config.get_str('geometry'):
@@ -711,7 +839,8 @@ class AppWindow:
         self.toggle_suit_row(visible=False)
         if args.start_min:
             logger.warning("Trying to start minimized")
-            self.w.wm_iconify()
+            self.oniconify() if root.overrideredirect() else self.w.wm_iconify()
+            # self.w.wm_iconify()
 
     def update_suit_text(self) -> None:
         """Update the suit text for current type and loadout."""
@@ -813,8 +942,7 @@ class AppWindow:
                     r' if downgrading between major versions with significant changes.\r\n\r\n'
                     'Do you want to open GitHub to download the latest release?'
                 )
-                update_msg = update_msg.replace('\\n', '\n')
-                update_msg = update_msg.replace('\\r', '\r')
+                update_msg = update_msg.replace('\\n', '\n').replace('\\r', '\r')
                 stable_popup = tk.messagebox.askyesno(title=title, message=update_msg)
                 if stable_popup:
                     webbrowser.open("https://github.com/EDCD/eDMarketConnector/releases/latest")
@@ -1834,11 +1962,14 @@ class AppWindow:
     def onexit(self, event=None, restart: bool = False) -> None:
         """Application shutdown procedure."""
         if sys.platform == 'win32':
-            shutdown_thread = threading.Thread(
-                target=self.systray.shutdown,
-                daemon=True,
-            )
-            shutdown_thread.start()
+            try:
+                shutdown_thread = threading.Thread(
+                    target=self.systray.shutdown,
+                    daemon=True,
+                )
+                shutdown_thread.start()
+            except AttributeError:  # No SysTray
+                logger.info("No Systray, No Thread to Shutdown")
 
         config.set_shutdown()  # Signal we're in shutdown now.
 
@@ -1900,7 +2031,9 @@ class AppWindow:
     def default_iconify(self, event=None) -> None:
         """Handle the Windows 'minimize' button."""
         # If we're meant to "minimize to system tray" then hide the window so no taskbar icon is seen
-        if sys.platform == 'win32' and config.get_bool('minimize_system_tray'):
+        if (sys.platform == 'win32'
+                and config.get_bool('minimize_system_tray')
+                and not bool(config.get_int('no_systray'))):
             # This gets called for more than the root widget, so only react to that
             if str(event.widget) == '.':
                 self.w.withdraw()
@@ -1909,17 +2042,6 @@ class AppWindow:
 def test_logging() -> None:
     """Simple test of top level logging."""
     logger.debug('Test from EDMarketConnector.py top-level test_logging()')
-
-
-def log_locale(prefix: str) -> None:
-    """Log all of the current local settings."""
-    logger.debug(f'''Locale: {prefix}
-Locale LC_COLLATE: {locale.getlocale(locale.LC_COLLATE)}
-Locale LC_CTYPE: {locale.getlocale(locale.LC_CTYPE)}
-Locale LC_MONETARY: {locale.getlocale(locale.LC_MONETARY)}
-Locale LC_NUMERIC: {locale.getlocale(locale.LC_NUMERIC)}
-Locale LC_TIME: {locale.getlocale(locale.LC_TIME)}'''
-                 )
 
 
 def setup_killswitches(filename: str | None):
@@ -1993,17 +2115,15 @@ def validate_providers(root: tk.Tk):
 
     # LANG: Popup-text about Reset Providers
     popup_text = tr.tl(r'One or more of your URL Providers were invalid, and have been reset:\r\n\r\n')
-    for provider in reset_providers:
+    for provider, (old_prov, new_prov) in reset_providers.items():
         # LANG: Text About What Provider Was Reset
-        popup_text += tr.tl(r'{PROVIDER} was set to {OLDPROV}, and has been reset to {NEWPROV}\r\n')
-        popup_text = popup_text.format(
+        popup_text += tr.tl(r'{PROVIDER} was set to {OLDPROV}, and has been reset to {NEWPROV}\r\n').format(
             PROVIDER=provider,
-            OLDPROV=reset_providers[provider][0],
-            NEWPROV=reset_providers[provider][1]
+            OLDPROV=old_prov,
+            NEWPROV=new_prov
         )
     # And now we do need these to be actual \r\n
-    popup_text = popup_text.replace('\\n', '\n')
-    popup_text = popup_text.replace('\\r', '\r')
+    popup_text = popup_text.replace('\\n', '\n').replace('\\r', '\r')
 
     tk.messagebox.showinfo(
         # LANG: Popup window title for Reset Providers
@@ -2172,8 +2292,7 @@ sys.path: {sys.path}'''
         detail = tr.tl(  # LANG: EDMC Critical Error Details
             r"Here's what EDMC Detected:\r\n\r\n{ERR}\r\n\r\nDo you want to file a Bug Report on GitHub?"
         ).format(ERR=err)
-        detail = detail.replace('\\n', '\n')
-        detail = detail.replace('\\r', '\r')
+        detail = detail.replace('\\n', '\n').replace('\\r', '\r')
         msg = tk.messagebox.askyesno(
             title=title, message=message, detail=detail, icon=tkinter.messagebox.ERROR, type=tkinter.messagebox.YESNO,
             parent=root
@@ -2204,8 +2323,7 @@ sys.path: {sys.path}'''
                 DISABLED='.disabled'
             )
             # And now we do need these to be actual \r\n
-            popup_text = popup_text.replace('\\n', '\n')
-            popup_text = popup_text.replace('\\r', '\r')
+            popup_text = popup_text.replace('\\n', '\n').replace('\\r', '\r')
 
             tk.messagebox.showinfo(
                 # LANG: Popup window title for list of 'broken' plugins that failed to load
@@ -2235,8 +2353,7 @@ sys.path: {sys.path}'''
                 DISABLED='.disabled'
             )
             # And now we do need these to be actual \r\n
-            popup_text = popup_text.replace('\\n', '\n')
-            popup_text = popup_text.replace('\\r', '\r')
+            popup_text = popup_text.replace('\\n', '\n').replace('\\r', '\r')
 
             tk.messagebox.showinfo(
                 # LANG: Popup window title for list of 'enabled' plugins that don't work with Python 3.x
