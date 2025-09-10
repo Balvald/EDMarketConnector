@@ -33,12 +33,12 @@ from typing import Any, Literal, Mapping, MutableMapping, cast, Sequence
 import requests
 import killswitch
 import monitor
-import myNotebook as nb  # noqa: N813
 import plug
 from companion import CAPIData
 from config import applongname, appname, appversion, config, debug_senders, user_agent
 from edmc_data import DEBUG_WEBSERVER_HOST, DEBUG_WEBSERVER_PORT
 from EDMCLogging import get_main_logger
+from myNotebook import EntryMenu
 from ttkHyperlinkLabel import HyperlinkLabel
 from l10n import translations as tr
 from plugins.common_coreutils import (api_keys_label_common, PADX, PADY, BUTTONX, SEPY, BOXY, STATION_UNDOCKED,
@@ -111,14 +111,14 @@ class This:
 
         self.label: tk.Widget | None = None
 
-        self.cmdr_label: nb.Label | None = None
-        self.cmdr_text: nb.Label | None = None
+        self.cmdr_label: ttk.Label | None = None
+        self.cmdr_text: ttk.Label | None = None
 
-        self.user_label: nb.Label | None = None
-        self.user: nb.EntryMenu | None = None
+        self.user_label: ttk.Label | None = None
+        self.user: EntryMenu | None = None
 
-        self.apikey_label: nb.Label | None = None
-        self.apikey: nb.EntryMenu | None = None
+        self.apikey_label: ttk.Label | None = None
+        self.apikey: EntryMenu | None = None
 
 
 this = This()
@@ -247,14 +247,14 @@ def plugin_app(parent: tk.Tk) -> None:
     :return: See PLUGINS.md#display
     """
     # system label in main window
-    this.system_link = parent.nametowidget(f".{appname.lower()}.system")
+    this.system_link = parent.nametowidget(f".{appname.lower()}.cnv.in.system")
     if this.system_link is None:
         logger.error("Couldn't look up system widget!!!")
         return
 
     this.system_link.bind_all('<<EDSMStatus>>', update_status)
     # station label in main window
-    this.station_link = parent.nametowidget(f".{appname.lower()}.station")
+    this.station_link = parent.nametowidget(f".{appname.lower()}.cnv.in.station")
 
 
 def plugin_stop() -> None:
@@ -271,7 +271,7 @@ def plugin_stop() -> None:
     logger.debug('Done.')
 
 
-def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> nb.Frame:
+def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> ttk.Frame:
     """
     Plugin preferences setup hook.
 
@@ -283,21 +283,27 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> nb.Fr
     :param is_beta: Whether game beta was detected.
     :return: An instance of `myNotebook.Frame`.
     """
-    frame = nb.Frame(parent)
+
+    # PADX = 10  # noqa: N806
+    # BUTTONX = 12  # noqa: N806
+    # PADY = 1  # noqa: N806
+    # BOXY = 2  # noqa: N806
+    # SEPY = 10  # noqa: N806
+
+    frame = ttk.Frame(parent)
     frame.columnconfigure(1, weight=1)
 
     cur_row = 0
     HyperlinkLabel(
         frame,
         text='Elite Dangerous Star Map',
-        background=nb.Label().cget('background'),
         url='https://www.edsm.net/',
         underline=True
     ).grid(row=cur_row, columnspan=2, padx=PADX, pady=PADY, sticky=tk.W)
     cur_row += 1
 
     this.log = tk.IntVar(value=config.get_int('edsm_out') and 1)
-    this.log_button = nb.Checkbutton(
+    this.log_button = ttk.Checkbutton(
         frame,
         # LANG: Settings>EDSM - Label on checkbox for 'send data'
         text=tr.tl('Send flight log and CMDR status to EDSM'),
@@ -316,30 +322,32 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str | None, is_beta: bool) -> nb.Fr
     this.label = HyperlinkLabel(
         frame,
         text=tr.tl('Elite Dangerous Star Map credentials'),  # LANG: Elite Dangerous Star Map credentials
-        background=nb.Label().cget('background'),
         url='https://www.edsm.net/settings/api',
         underline=True
     )
     if this.label:
         this.label.grid(row=cur_row, columnspan=2, padx=PADX, pady=PADY, sticky=tk.W)
     cur_row += 1
-    this.cmdr_label = nb.Label(frame, text=tr.tl('Cmdr'))  # LANG: Game Commander name label in EDSM settings
+    this.cmdr_label = ttk.Label(frame, text=tr.tl('Cmdr'))  # LANG: Game Commander name label in EDSM settings
     this.cmdr_label.grid(row=cur_row, padx=PADX, pady=PADY, sticky=tk.W)
-    this.cmdr_text = nb.Label(frame)
+    this.cmdr_text = ttk.Label(frame)
     this.cmdr_text.grid(row=cur_row, column=1, padx=PADX, pady=BOXY, sticky=tk.W)
 
     cur_row += 1
     # LANG: EDSM Commander name label in EDSM settings
-    this.user_label = nb.Label(frame, text=tr.tl('Commander Name'))
+    this.user_label = ttk.Label(frame, text=tr.tl('Commander Name'))
     this.user_label.grid(row=cur_row, padx=PADX, pady=PADY, sticky=tk.W)
-    this.user = nb.EntryMenu(frame)
+    this.user = EntryMenu(frame)
     this.user.grid(row=cur_row, column=1, padx=PADX, pady=BOXY, sticky=tk.EW)
 
     cur_row += 1
     # LANG: EDSM API key label
+
     api_keys_label_common(this, cur_row, frame)
+
     cur_row += 1
     prefs_cmdr_changed(cmdr, is_beta)
+
     show_pwd_var_common(frame, cur_row, this)
 
     return frame

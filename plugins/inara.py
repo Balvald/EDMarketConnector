@@ -35,13 +35,13 @@ from typing import Any, Callable, Deque, Mapping, NamedTuple, Sequence, cast, Un
 import requests
 import edmc_data
 import killswitch
-import myNotebook as nb  # noqa: N813
 import plug
 import timeout_session
 from companion import CAPIData
 from config import applongname, appname, appversion, config, debug_senders
 from EDMCLogging import get_main_logger
 from monitor import monitor
+from myNotebook import EntryMenu
 from ttkHyperlinkLabel import HyperlinkLabel
 from l10n import translations as tr
 from plugins.common_coreutils import (api_keys_label_common, PADX, PADY, BUTTONX, SEPY, station_name_setter_common,
@@ -123,10 +123,10 @@ class This:
 
         # Prefs UI
         self.log: 'tk.IntVar'
-        self.log_button: nb.Checkbutton
+        self.log_button: ttk.Checkbutton
         self.label: HyperlinkLabel
-        self.apikey: nb.EntryMenu
-        self.apikey_label: tk.Label
+        self.apikey: EntryMenu
+        self.apikey_label: ttk.Label
 
         self.events: dict[Credentials, Deque[Event]] = defaultdict(deque)
         self.event_lock: Lock = threading.Lock()  # protects events, for use when rewriting events
@@ -215,8 +215,8 @@ def plugin_start3(plugin_dir: str) -> str:
 def plugin_app(parent: tk.Tk) -> None:
     """Plugin UI setup Hook."""
     this.parent = parent
-    this.system_link = parent.nametowidget(f".{appname.lower()}.system")
-    this.station_link = parent.nametowidget(f".{appname.lower()}.station")
+    this.system_link = parent.nametowidget(f".{appname.lower()}.cnv.in.system")
+    this.station_link = parent.nametowidget(f".{appname.lower()}.cnv.in.station")
     this.system_link.bind_all('<<InaraLocation>>', update_location)
     this.system_link.bind_all('<<InaraShip>>', update_ship)
 
@@ -233,20 +233,20 @@ def plugin_stop() -> None:
     logger.debug('Done.')
 
 
-def plugin_prefs(parent: ttk.Notebook, cmdr: str, is_beta: bool) -> nb.Frame:
+def plugin_prefs(parent: ttk.Notebook, cmdr: str, is_beta: bool) -> ttk.Frame:
     """Plugin Preferences UI hook."""
     cur_row = 0
 
-    frame = nb.Frame(parent)
+    frame = ttk.Frame(parent)
     frame.columnconfigure(1, weight=1)
 
     HyperlinkLabel(
-        frame, text='Inara', background=nb.Label().cget('background'), url='https://inara.cz/', underline=True
+        frame, text='Inara', url='https://inara.cz/', underline=True
     ).grid(row=cur_row, columnspan=2, padx=PADX, pady=PADY, sticky=tk.W)  # Don't translate
     cur_row += 1
 
     this.log = tk.IntVar(value=config.get_int('inara_out') and 1)
-    this.log_button = nb.Checkbutton(
+    this.log_button = ttk.Checkbutton(
         frame,
         text=tr.tl('Send flight log and Cmdr status to Inara'),  # LANG: Checkbox to enable INARA API Usage
         variable=this.log,
@@ -264,8 +264,7 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str, is_beta: bool) -> nb.Frame:
     # Section heading in settings
     this.label = HyperlinkLabel(
         frame,
-        text=tr.tl('Inara credentials'),  # LANG: Text for INARA API keys link ( goes to https://inara.cz/settings-api )
-        background=nb.Label().cget('background'),
+        text=tr.tl('Inara credentials'),  # LANG: Text for INARA API keys link (goes to https://inara.cz/settings-api)
         url='https://inara.cz/settings-api',
         underline=True
     )
@@ -274,6 +273,7 @@ def plugin_prefs(parent: ttk.Notebook, cmdr: str, is_beta: bool) -> nb.Frame:
     cur_row += 1
 
     # LANG: Inara API key label
+
     api_keys_label_common(this, cur_row, frame)
     cur_row += 1
     prefs_cmdr_changed(cmdr, is_beta)

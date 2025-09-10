@@ -66,6 +66,9 @@ def generate_data_files(
     l10n_dir = "L10n"
     fdevids_dir = pathlib.Path("FDevIDs")
     license_dir = pathlib.Path("docs/Licenses")
+    themes_dir = pathlib.Path("themes")
+    theme_dirs = [os.path.join(themes_dir, d) for d in os.listdir(themes_dir)
+                  if os.path.isdir(os.path.join(themes_dir, d))]
     data_files = [
         (
             "",
@@ -80,6 +83,7 @@ def generate_data_files(
                 "modules.json",
                 "ships.json",
                 f"{app_name}.ico",
+                f"{app_name}.gif",
                 f"resources/{appcmdname}.ico",
                 "EDMarketConnector - TRACE.bat",
                 "EDMarketConnector - localserver-auth.bat",
@@ -99,6 +103,11 @@ def generate_data_files(
         ),
         ("plugins", plugins),
     ]
+    for theme_dir in theme_dirs:
+        files = (theme_dir,
+                 [pathlib.Path(theme_dir) / x for x in os.listdir(theme_dir) if x.endswith(".tcl")])
+        data_files.append(files)
+
     # Add all files recursively from license directories
     for root, dirs, files in os.walk(license_dir):
         file_list = [os.path.join(root, f) for f in files]
@@ -134,7 +143,7 @@ def build() -> None:
                 "util",
                 "plugins"
             ],
-            "includes": ["dataclasses", "shutil", "timeout_session", "zipfile"],
+            "includes": ["dataclasses", "shutil", "timeout_session", "zipfile", "myNotebook"],
             "excludes": [
                 "distutils",
                 "_markerlib",

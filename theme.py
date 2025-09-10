@@ -5,44 +5,38 @@ Copyright (c) EDCD, All Rights Reserved
 Licensed under the GNU General Public License.
 See LICENSE file.
 
-Because of various ttk limitations this app is an unholy mix of Tk and ttk widgets.
-So can't use ttk's theme support. So have to change colors manually.
+Believe us, this used to be much worse before ttk's theme support was properly leveraged.
 """
 from __future__ import annotations
 
 import os
 import sys
 import tkinter as tk
-from tkinter import font as tk_font
+import warnings
 from tkinter import ttk
 from typing import Callable
-from l10n import translations as tr
 from config import config
 from EDMCLogging import get_main_logger
-from ttkHyperlinkLabel import HyperlinkLabel
 
 logger = get_main_logger()
 
 if __debug__:
     from traceback import print_exc
 
-if sys.platform == "linux":
-    from ctypes import POINTER, Structure, byref, c_char_p, c_int, c_long, c_uint, c_ulong, c_void_p, cdll
-
-
 if sys.platform == 'win32':
-    import ctypes
-    from ctypes.wintypes import DWORD, LPCVOID, LPCWSTR
+    import win32con
     import win32gui
-    AddFontResourceEx = ctypes.windll.gdi32.AddFontResourceExW
-    AddFontResourceEx.restypes = [LPCWSTR, DWORD, LPCVOID]  # type: ignore
+    from winrt.microsoft.ui.interop import get_window_id_from_window
+    from winrt.microsoft.ui.windowing import AppWindow
+    from winrt.windows.ui import Color, Colors, ColorHelper
+    from ctypes import windll
     FR_PRIVATE = 0x10
-    FR_NOT_ENUM = 0x20
-    font_path = config.respath_path / 'EUROCAPS.TTF'
-    AddFontResourceEx(str(font_path), FR_PRIVATE, 0)
+    fonts_loaded = windll.gdi32.AddFontResourceExW(str(config.respath_path / 'EUROCAPS.TTF'), FR_PRIVATE, 0)
+    if fonts_loaded < 1:
+        logger.error('Unable to load Euro Caps font for Transparent theme')
 
 elif sys.platform == 'linux':
-    # pyright: reportUnboundVariable=false
+    from ctypes import POINTER, Structure, byref, c_char_p, c_int, c_long, c_uint, c_ulong, c_void_p, cdll
     XID = c_ulong 	# from X.h: typedef unsigned long XID
     Window = XID
     Atom = c_ulong
@@ -125,21 +119,29 @@ elif sys.platform == 'linux':
 
 
 class _Theme:
-
-    # Enum ?  Remember these are, probably, based on 'value' of a tk
-    # RadioButton set.  Looking in prefs.py, they *appear* to be hard-coded
-    # there as well.
+    # Kept if any plugin checks for theme.THEME_DEFAULT, theme.THEME_DARK or theme.THEME_TRANSPARENT
     THEME_DEFAULT = 0
     THEME_DARK = 1
     THEME_TRANSPARENT = 2
+    packages = {
+        'light': 'light',  # 'default' is the name of a builtin theme
+        'dark': 'dark',
+        'eurocaps': 'eurocaps',
+    }
+    style: ttk.Style
+    root: tk.Tk
+    binds: dict[str, str] = {}
+
+    colors: dict[str, str] = {}
+    fonts: dict[str, str] = {}
+    prefsdialog_count: int = 0
+    helpabout_count: int = 0
+    force_skips: list = []
 
     def __init__(self) -> None:
         self.active: int | None = None  # Starts out with no theme
+        self.active_transparent: bool | None = None
         self.minwidth: int | None = None
-        self.widgets: dict[tk.Widget | tk.BitmapImage, set] = {}
-        self.widgets_pair: list = []
-        self.defaults: dict = {}
-        self.current: dict = {}
         self.default_ui_scale: float | None = None  # None == not yet known
         self.startup_ui_scale: int | None = None
 
@@ -257,43 +259,38 @@ class _Theme:
         if sys.platform == 'linux':
             style.theme_use('clam')
 
+    def initialize(self, root: tk.Tk) -> None:
+        self.style = ttk.Style()
+        self.root = root
+        if not config.get_bool('transparent'):
+            config.set('transparent', False)
+        self.transparent = tk.BooleanVar(value=config.get_bool('transparent'))
         # Default dark theme colors
         if not config.get_str('dark_text'):
             config.set('dark_text', '#ff8000')  # "Tangerine" in OSX color picker
         if not config.get_str('dark_highlight'):
             config.set('dark_highlight', 'white')
 
-        if theme == self.THEME_DEFAULT:
-            # (Mostly) system colors
-            style = ttk.Style()
-            self.current = {
-                'background': (style.lookup('TLabel', 'background')),
-                'foreground': style.lookup('TLabel', 'foreground'),
-                'activebackground': (sys.platform == 'win32' and 'SystemHighlight' or
-                                     style.lookup('TLabel', 'background', ['active'])),
-                'activeforeground': (sys.platform == 'win32' and 'SystemHighlightText' or
-                                     style.lookup('TLabel', 'foreground', ['active'])),
-                'disabledforeground': style.lookup('TLabel', 'foreground', ['disabled']),
-                'highlight': 'blue',
-                'font': 'TkDefaultFont',
-            }
+        for theme_file in config.internal_theme_dir_path.glob('*/pkgIndex.tcl'):
+            try:
+                self.root.tk.call('source', theme_file)
+                logger.info(f'loading theme package from "{theme_file}"')
+                # Adding new themes to packages and store info about which font they use.
+                self.packages[theme_file.parent.name.lower()] = theme_file.parent.name.lower()
+                self.load_colors(theme_file.parent.name)
+            except tk.TclError:
+                logger.exception(f'Failure loading theme package "{theme_file}"')
 
-        else:  # Dark *or* Transparent
-            (r, g, b) = root.winfo_rgb(config.get_str('dark_text'))
-            self.current = {
-                'background': 'grey4',  # OSX inactive dark titlebar color
-                'foreground': config.get_str('dark_text'),
-                'activebackground': config.get_str('dark_text'),
-                'activeforeground': 'grey4',
-                'disabledforeground': f'#{int(r/384):02x}{int(g/384):02x}{int(b/384):02x}',
-                'highlight': config.get_str('dark_highlight'),
-                # Font only supports Latin 1 / Supplement / Extended, and a
-                # few General Punctuation and Mathematical Operators
-                # LANG: Label for commander name in main window
-                'font': (theme > 1 and not 0x250 < ord(tr.tl('Cmdr')[0]) < 0x3000 and
-                         tk_font.Font(family='Euro Caps', size=10, weight=tk_font.NORMAL) or
-                         'TkDefaultFont'),
-            }
+    def register(self, widget: tk.Widget | tk.BitmapImage) -> None:
+        assert isinstance(widget, (tk.BitmapImage, tk.Widget)), widget
+        warnings.warn('theme.register() is no longer necessary as theme attributes are set on tk level',
+                      DeprecationWarning, stacklevel=2)
+
+    def register_alternate(self, pair: tuple, gridopts: dict) -> None:
+        ...  # does any plugin even use this?
+
+    def button_bind(self, widget: tk.Widget, command: Callable) -> None:
+        ...  # does any plugin even use this?
 
     def update(self, widget: tk.Widget) -> None:
         """
@@ -386,88 +383,306 @@ class _Theme:
                     widget['background'] = self.current['background']
                     widget['highlightbackground'] = self.current['disabledforeground']
 
-        except Exception:
-            logger.exception(f'Plugin widget issue ? {widget=}')
+    def to_hex(self, hex_color) -> str:
+        hex_color = str(hex_color)
+        hex_color = hex_color.lstrip()
+        if not hex_color.startswith('#'):
+            hex_color = self.root.winfo_rgb(hex_color)
+            hex_color = [int(hex_color[i] // 256) for i in range(len(hex_color))]
+            hex_color = '#{:02x}{:02x}{:02x}'.format(*hex_color)  # noqa: FS002
+        return hex_color
 
-    # Apply configured theme
+    if sys.platform == 'win32':
+        def hex_to_rgb(self, hex_color) -> Color:
+            hex_color = self.to_hex(hex_color)
+            hex_color = hex_color.strip('#')
+            return ColorHelper.from_argb(255, int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
-    def apply(self, root: tk.Tk) -> None:  # noqa: CCR001, C901
-        theme = config.get_int('theme')
-        self._colors(root, theme)
+        def set_title_buttons_background(self, color: Color) -> None:
+            hwnd = win32gui.GetParent(self.root.winfo_id())
+            window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
+            window.title_bar.button_background_color = color
+            window.title_bar.button_inactive_background_color = color
 
-        # Apply colors
-        for widget in set(self.widgets):
-            if isinstance(widget, tk.Widget) and not widget.winfo_exists():
-                self.widgets.pop(widget)  # has been destroyed
-            else:
-                self._update_widget(widget)
-
-        # Switch menus
-        for pair, gridopts in self.widgets_pair:
-            for widget in pair:
-                if isinstance(widget, tk.Widget):
-                    widget.grid_remove()
-
-            if isinstance(pair[0], tk.Menu):
-                if theme == self.THEME_DEFAULT:
-                    root['menu'] = pair[0]
-
-                else:  # Dark *or* Transparent
-                    root['menu'] = ''
-                    pair[theme].grid(**gridopts)
-
-            else:
-                pair[theme].grid(**gridopts)
-
-        if self.active == theme:
-            return  # Don't need to mess with the window manager
-        self.active = theme
+    def transparent_move(self, event=None) -> None:
+        # to make it adjustable for any style we need to give this the background color of the title bar
+        # that should turn transparent, ideally as hex value
+        # upper left corner of our window
+        x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
+        # lower right corner of our window
+        max_x = x + self.root.winfo_width()
+        max_y = y + self.root.winfo_height()
+        # mouse position
+        mouse_x, mouse_y = self.root.winfo_pointerx(), self.root.winfo_pointery()
 
         if sys.platform == 'win32':
-            import win32con
+            hwnd = win32gui.GetParent(self.root.winfo_id())
+            window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
 
-            # FIXME: Lose the "treat this like a boolean" bullshit
-            if theme == self.THEME_DEFAULT:
-                root.overrideredirect(False)
+        # check if mouse is inside the window
+        if x <= mouse_x <= max_x and y <= mouse_y <= max_y:
+            # mouse is inside the window area
+            self.root.attributes("-transparentcolor", '')
+            if sys.platform == 'win32':
+                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
+                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.button_hover_background_color = self.hex_to_rgb(
+                    self.style.lookup('TButton', 'selectbackground'))
+        else:
+            self.root.attributes("-transparentcolor", self.style.lookup('TButton', 'background'))
+            if sys.platform == 'win32':
+                self.set_title_buttons_background(Colors.transparent)
+                window.title_bar.background_color = Colors.transparent
+                window.title_bar.inactive_background_color = Colors.transparent
+                window.title_bar.button_hover_background_color = Colors.transparent
 
-            else:
-                root.overrideredirect(True)
+    def _load_font(self, theme_name, line) -> None:
+        if 'variable font [font create ' in line.lstrip():
+            self.fonts[theme_name] = line.strip().replace(
+                'variable font [font create ', '').replace('\n', '').replace(']', '')
+            logger.info(f'Loaded font: {self.fonts[theme_name]}')
+        elif line.strip() == 'variable font TkDefaultFont':
+            self.fonts[theme_name] = 'TkDefaultFont'
+        else:
+            logger.warning(f'Unknown font: {line}')
 
-            if theme == self.THEME_TRANSPARENT:
-                root.attributes("-transparentcolor", 'grey4')
+    def load_colors(self, selected_theme: str = None) -> None:
+        # load colors from the current theme which is a *.tcl file
+        # and store them in the colors dict
+        # get the current theme
+        if selected_theme is None:
+            theme = config.get_str('theme_name').lower()
+            if theme not in self.packages.keys():
+                theme = 'light'
+                config.set('theme_name', theme)
+                config.set('theme', 0)
+            theme_name = self.packages[theme]
+        else:
+            theme_name = selected_theme.lower()
+            theme = selected_theme.lower()
 
-            else:
-                root.attributes("-transparentcolor", '')
+        # get the path to the theme file
+        theme_file = config.internal_theme_dir_path / theme_name / (theme_name + '.tcl')
 
-            root.withdraw()
-            root.update_idletasks()  # Size and windows styles get recalculated here
-            hwnd = win32gui.GetParent(root.winfo_id())
-            win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE,
-                                   win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
-                                   & ~win32con.WS_MAXIMIZEBOX)  # disable maximize
+        # read colours and font from the theme file
+        with open(theme_file, 'r') as f:
+            lines = f.readlines()
+            foundstart = False
+            for line in lines:
+                if line.strip() == '}':
+                    continue
+                if line.lstrip().startswith('variable font'):
+                    self._load_font(theme_name, line)
+                    break
+                if line.lstrip().startswith('array set colors'):
+                    foundstart = True
+                    continue
+                if foundstart:
+                    pair = line.lstrip().replace('\n', '').replace('"', '').split()
+                    self.colors[pair[0]] = pair[1]
 
-            if theme == self.THEME_TRANSPARENT:
+    def _get_all_widgets(self) -> list:
+        all_widgets = []
+        all_widgets.append(self.root)
+
+        for child in self.root.winfo_children():
+            all_widgets.append(child)
+            all_widgets.extend(child.winfo_children())
+
+        oldlen = 0
+        newlen = len(all_widgets)
+
+        while newlen > oldlen:
+            oldlen = newlen
+            for widget in all_widgets:
+                try:
+                    widget_children = widget.winfo_children()
+                    for child in widget_children:
+                        if child not in all_widgets:
+                            all_widgets.append(child)
+                            # logger.info(f'Added {child} to all_widgets')
+                except Exception as e:
+                    logger.error(f'Error getting children of {widget}: {e}')
+            newlen = len(all_widgets)
+        return all_widgets
+
+    def _force_theme_get_skips(self) -> list[str]:
+        prefscount = self.prefsdialog_count
+        if prefscount == 1:
+            prefscount = ""
+
+        # Skipping widgets that shall continue to use the dark theme that is assigned to them.
+
+        all_skips = [
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!button",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!button2",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!label3",
+            f".!preferencesdialog{prefscount}.!frame.!notebook.!frame2.!label4"
+        ]
+
+        # Get skips that got registered by plugins
+        for skip in self.force_skips:
+            if str(skip).startswith('.!preferencesdialog'):
+                skip = f".!preferencesdialog{prefscount}" + str(skip).replace('.!preferencesdialog', '')
+            all_skips.append(skip)
+
+        return all_skips
+
+    def _force_theme_checkbutton(self, widget) -> None:
+        widget.configure(background=self.style.lookup('TCheckbutton', 'background'))
+        widget.configure(foreground=self.style.lookup('TCheckbutton', 'foreground'))
+        widget.configure(activebackground=self.style.lookup('TCheckbutton', 'background'))
+        widget.configure(activeforeground=self.style.lookup('TCheckbutton', 'foreground'))
+        widget.configure(indicatoron=True)
+        widget.configure(selectcolor=self.style.lookup('TCheckbutton', 'background'))
+        widget.configure(disabledforeground=self.colors['-disabledfg'])
+        self._force_theme_font(widget)
+
+    def _force_theme_radiobutton(self, widget) -> None:
+        widget.configure(background=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(foreground=self.style.lookup('TRadiobutton', 'foreground'))
+        widget.configure(activebackground=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(activeforeground=self.style.lookup('TRadiobutton', 'foreground'))
+        widget.configure(indicatoron=True)
+        widget.configure(selectcolor=self.style.lookup('TRadiobutton', 'background'))
+        widget.configure(disabledforeground=self.colors['-disabledfg'])
+        self._force_theme_font(widget)
+
+    def _force_theme_font(self, widget) -> None:
+        font = self.fonts[config.get_str('theme_name').lower()]
+        if font.startswith('TkDefaultFont'):
+            font = 'TkDefaultFont'
+        else:
+            font = font.split('-')
+            font = (font[1].split('family ')[1].rstrip().replace('"', ''), int(font[2].split(' ')[1]))
+        widget.configure(font=font)
+
+    def _force_theme(self) -> None:
+        logger.info('Forcing theme change')
+
+        all_skips = self._force_theme_get_skips()
+
+        all_widgets = self._get_all_widgets()
+
+        force_font = (tk.Entry, tk.Text, tk.Label, tk.Menu, tk.Button, tk.Menubutton, tk.OptionMenu,
+                      tk.Spinbox, ttk.Spinbox, ttk.Entry, ttk.Combobox, tk.LabelFrame)
+
+        for widget in all_widgets:
+            try:
+                if str(widget) in all_skips:
+                    continue
+                elif isinstance(widget, tk.Checkbutton):
+                    self._force_theme_checkbutton(widget)
+                elif isinstance(widget, tk.Radiobutton):
+                    self._force_theme_radiobutton(widget)
+                elif isinstance(widget, tuple(force_font)):
+                    self._force_theme_font(widget)
+                else:
+                    continue
+            except Exception as e:
+                logger.debug(f'Error forcing theme for {widget} with type {type(widget)}: {e}')
+
+    def register_skip(self, widget: tk.Widget) -> None:
+        """
+        Idea is to let plugins register skips for widgets that the plugin wants to define its own styles for.
+
+           * Because _force_theme will just assign the theme even if the plugin creator had something else in mind.
+           * When you want to skip a widget in the preferencesdialog it needs to start with ".!preferencesdialog"
+             or .!preferencesdialog.!frame.!notebook
+           * When you want to skip a widget in the main ui
+             it needs to start with ".edmarketconnector.cnv.in.plugin_{number}"
+           * Only needed if the widget is a tk.Checkbutton or tk.Radiobutton!
+           * Any other widget already changes its theme with the ttk::setTheme or the tk_setPalette call.
+             which can be easily overridden by the plugin creator at any time.
+        """
+        logger.info(f'Registering skip for {widget}')
+        self.force_skips.append(str(widget))
+
+    def apply(self) -> None:
+        logger.info('Applying theme')
+        theme = config.get_str('theme_name').lower()
+        if theme not in self.packages.keys():
+            theme = 'light'
+            config.set('theme_name', theme.capitalize())
+            config.set('theme', 0)
+        transparent = config.get_bool('transparent')
+
+        try:
+            self.root.tk.call('ttk::setTheme', self.packages[theme])
+            # load colors from the current theme into self.colors
+            self.load_colors()
+            # call tk_setPalette to apply the theme to all widgets
+            # these are mostly tk widgets or tk widgets that are part of more complex ttk widgets
+            self.root.tk.call('tk_setPalette',
+                              'activeBackground', self.colors['-selectbg'],
+                              'activeForeground', self.colors['-selectfg'],
+                              'background', self.colors['-bg'],
+                              'foreground', self.colors['-fg'],
+                              'highlightColor', self.colors['-highlight'],
+                              'highlightBackground', self.colors['-bg'],
+                              'selectBackground', self.colors['-selectbg'],
+                              'selectForeground', self.colors['-selectfg'],
+                              'disabledForeground', self.colors['-disabledfg'],
+                              'insertBackground', self.colors['-fg'],
+                              'selectColor', self.colors['-selectbg'],
+                              'troughColor', self.colors['-bg'])
+            # Because tk.Radiobutton and tk.Checkbutton cannot be properly read with the settings of the
+            # tk_setPalette call we have to additionally force a fitting theme for them.
+            self._force_theme()
+        except tk.TclError:
+            logger.exception(f'Failure setting theme: {self.packages[theme]}')
+
+        if self.active == theme and self.active_transparent == transparent:
+            return  # Don't need to mess with the window manager
+        self.active = theme
+        self.active_transparent = transparent
+
+        self.root.withdraw()
+        self.root.update_idletasks()  # Size gets recalculated here
+        if sys.platform == 'win32':
+            hwnd = win32gui.GetParent(self.root.winfo_id())
+            window = AppWindow.get_from_window_id(get_window_id_from_window(hwnd))
+            title_gap: ttk.Frame = self.root.nametowidget('.alternate_menubar.title_gap')
+
+            window.title_bar.extends_content_into_title_bar = True
+            title_gap['height'] = window.title_bar.height
+
+            if self.transparent.get():
+                self.set_title_buttons_background(Colors.transparent)
+                window.title_bar.background_color = Colors.transparent
+                window.title_bar.inactive_background_color = Colors.transparent
+                window.title_bar.button_hover_background_color = Colors.transparent
+                # TODO prevent loss of focus when hovering the title bar area
+                # fixed by transparent_move,
+                # we just don't regain focus when hovering over the title bar,
+                # we have to hover over some visible widget first.
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
                                        win32con.WS_EX_APPWINDOW | win32con.WS_EX_LAYERED)  # Add to taskbar
-
+                self.binds['<Enter>'] = self.root.bind('<Enter>', self.transparent_move)
+                self.binds['<FocusIn>'] = self.root.bind('<FocusIn>', self.transparent_move)
+                self.binds['<Leave>'] = self.root.bind('<Leave>', self.transparent_move)
+                self.binds['<FocusOut>'] = self.root.bind('<FocusOut>', self.transparent_move)
             else:
+                # window.title_bar.reset_to_default()  # This makes it crash when switchthing back to default
+                self.set_title_buttons_background(self.hex_to_rgb(self.style.lookup('TButton', 'background')))
+                window.title_bar.background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.inactive_background_color = self.hex_to_rgb(self.style.lookup('TButton', 'background'))
+                window.title_bar.button_hover_background_color = self.hex_to_rgb(
+                    self.style.lookup('TButton', 'selectbackground'))
                 win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, win32con.WS_EX_APPWINDOW)  # Add to taskbar
-
-            root.deiconify()
-            root.wait_visibility()  # need main window to be displayed before returning
-
+                for event, bind in self.binds.items():
+                    self.root.unbind(event, bind)
+                self.binds.clear()
         else:
-            root.withdraw()
-            root.update_idletasks()  # Size gets recalculated here
             if dpy:
                 xroot = Window()
                 parent = Window()
                 children = Window()
                 nchildren = c_uint()
-                XQueryTree(dpy, root.winfo_id(), byref(xroot), byref(parent), byref(children), byref(nchildren))
-                if theme == self.THEME_DEFAULT:
+                XQueryTree(dpy, self.root.winfo_id(), byref(xroot), byref(parent), byref(children), byref(nchildren))
+                if theme == 'light':  # self.THEME_DEFAULT:
                     wm_hints = motif_wm_hints_normal
-
                 else:  # Dark *or* Transparent
                     wm_hints = motif_wm_hints_dark
 
@@ -477,19 +692,12 @@ class _Theme:
 
                 XFlush(dpy)
 
-            else:
-                if theme == self.THEME_DEFAULT:
-                    root.overrideredirect(False)
-
-                else:  # Dark *or* Transparent
-                    root.overrideredirect(True)
-
-            root.deiconify()
-            root.wait_visibility()  # need main window to be displayed before returning
+        self.root.deiconify()
+        self.root.wait_visibility()  # need main window to be displayed before returning
 
         if not self.minwidth:
-            self.minwidth = root.winfo_width()  # Minimum width = width on first creation
-            root.minsize(self.minwidth, -1)
+            self.minwidth = self.root.winfo_width()  # Minimum width = width on first creation
+            self.root.minsize(self.minwidth, -1)
 
 
 # singleton
